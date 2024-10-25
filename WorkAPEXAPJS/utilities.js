@@ -1,17 +1,121 @@
 /*Utilities*/
-var recordingStartTime = null;
-var mediaPlayerTimer = null;
+let recordingStartTime = null;
+let mediaPlayerTimer = null;
 
 function logWithStyle(message, level = 'info') {
     let style = 'font-weight: bold;';
     switch (level) {
-        case 'info': style += 'color: #90ee90'; console.log('%c FGVD - ' + message, style); break;
-        case 'warn': style += 'color: yellow'; console.warn('%c FGVD - ' + message, style); break;
-        case 'error': style += 'color: red'; console.error('%c FGVD - ' + message, style); break;
-        case 'undefined': style += 'color: orange'; console.warn('%c FGVD - ' + message, style); break;
-        default: console.log('%c FGVD - ' + message, style);
+        case 'info':
+            style += 'color: #90ee90';
+            console.log('%c FGVD - ' + message, style);
+            break;
+        case 'warn':
+            style += 'color: yellow';
+            console.warn('%c FGVD - ' + message, style);
+            break;
+        case 'error':
+            style += 'color: red';
+            console.error('%c FGVD - ' + message, style);
+            break;
+        case 'undefined':
+            style += 'color: orange';
+            console.warn('%c FGVD - ' + message, style);
+            break;
+        default:
+            console.log('%c FGVD - ' + message, style);
     }
 }
+
+async function initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile) {
+    try {
+        let audioContext = new (window.AudioContext || window.webkitAudioContext)({sampleRate});
+        await audioContext.audioWorklet.addModule(audioProcessorJSFile);
+
+        let processorNode = new AudioWorkletNode(audioContext, 'audio-processor');
+        let audioDataChunks = [];
+
+        processorNode.port.onmessage = (event) => {
+            let chunk = event.data;
+            if (!(chunk instanceof Float32Array)) {
+                chunk = new Float32Array(chunk);
+            }
+            audioDataChunks.push(chunk);
+            logWithStyle('Received audio chunk, size: ' + chunk.length, 'info');
+        };
+
+        let stream = await navigator.mediaDevices.getUserMedia({audio: {channelCount}});
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(processorNode);
+        processorNode.connect(audioContext.destination);
+
+        logWithStyle('AudioWorklet initialized with sampleRate: ' + sampleRate + ', channelCount: ' + channelCount, 'info');
+
+        // Return necessary objects for further use
+        return {
+            audioContext: audioContext, processorNode: processorNode, stream: stream, audioDataChunks: audioDataChunks
+        };
+    } catch (error) {
+        logWithStyle('Failed to initialize AudioWorkletNode: ' + error, 'error');
+        // Fallback to MediaRecorder
+        return null
+    }
+}
+
+async function initMediaRecorder(constraints) {
+    try {
+        let stream = await navigator.mediaDevices.getUserMedia(constraints);
+        let mediaRecorder = new MediaRecorder(stream);
+
+        logWithStyle('New MediaRecorder initialized.', 'info');
+        return {mediaRecorder, stream};
+    } catch (error) {
+        logWithStyle('Failed to initialize MediaRecorder: ' + error, 'error');
+        throw error; // Let the caller handle the error if needed
+    }
+}
+
+function assignAudioChunksToHolders(base64Chunks, pagePrefix, startHolderId) {
+    logWithStyle('Starting assignAudioChunksToHolders.', 'info');
+
+    if (!base64Chunks || !Array.isArray(base64Chunks) || base64Chunks.length === 0) {
+        logWithStyle('Error: Invalid base64Chunks array in assignAudioChunksToHolders.', 'error');
+        return 0;
+    }
+    if (!pagePrefix || typeof pagePrefix !== 'string') {
+        logWithStyle('Error: Missing or invalid pagePrefix in assignAudioChunksToHolders.', 'error');
+        return 0;
+    }
+    if (!startHolderId || typeof startHolderId !== 'number') {
+        logWithStyle('Error: Missing or invalid startHolderId in assignAudioChunksToHolders.', 'error');
+        return 0;
+    }
+
+    let itemsAssigned = 0;
+    let firstItemId = '';
+    let lastItemId = '';
+
+    for (let i = 0; i < base64Chunks.length; i++) {
+        let itemId = pagePrefix + 'AUDIO_HOLDER_' + (startHolderId + i);
+        let apexItem = document.getElementById(itemId);
+
+        if (apexItem) {
+            apex.item(itemId).setValue(base64Chunks[i]);
+            itemsAssigned++;
+
+            if (itemsAssigned === 1) {
+                firstItemId = itemId;
+            }
+
+            lastItemId = itemId;
+        }
+    }
+
+    logWithStyle(`Finished assignAudioChunksToHolders. Total items assigned: ${itemsAssigned}`, 'info');
+    logWithStyle(`First item assigned: ${firstItemId}`, 'info');
+    logWithStyle(`Last item assigned: ${lastItemId}`, 'info');
+    return itemsAssigned;
+}
+
 function assignJsonToItems(jsonData, neededSequences) {
     console.log("Using assignJsonToItems(jsonData)");
     console.log("jsonData is the prompt coming from the db to be parsed and presented in the UI.")
@@ -42,8 +146,7 @@ function assignJsonToItems(jsonData, neededSequences) {
                 let genre = match[4].trim();
                 let emotion = match[5].trim();
                 let intensity = match[6].trim();
-                let htmlContent =
-                    `
+                let htmlContent = `
 					<div class="prompt-wrapper">
 						<div class="prompt-title" style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
 							Prompt ${promptNum} of ${neededSequences}:
@@ -58,8 +161,7 @@ function assignJsonToItems(jsonData, neededSequences) {
 							<span><strong>Intensity:</strong> ${intensity}</span>
 						</div>
 					</div>
-					`
-                    ;
+					`;
                 apexItem.innerHTML = htmlContent;
                 logWithStyle("Assigned value to " + itemId + ": " + htmlContent);
             } else {
@@ -71,32 +173,107 @@ function assignJsonToItems(jsonData, neededSequences) {
         }
     });
 }
-function enableOnlyNextSession(sessionCount, stopRecorder) {
-    console.log("Using function enableOnlyNextSession(sessionCount, stopRecorder))");
-    console.log("sessionCount is equivalent to the number of the current recording.")
-    console.log("stopRecorder is equivalent to the number of recordings needed.")
-    if (sessionCount === undefined || sessionCount === null) {
-        logWithStyle('Missing parameter: sessionCount', 'error');
+
+function audioBlobToBase64(blob, callback) {
+    logWithStyle('Starting audioBlobToBase64 conversion.', 'info');
+
+    // Check if required parameters are provided
+    if (!blob) {
+        logWithStyle('Error: Missing blob parameter in audioBlobToBase64.', 'error');
         return;
     }
-    if (stopRecorder === undefined || stopRecorder === null) {
-        logWithStyle('Missing parameter: stopRecorder', 'error');
+    if (typeof callback !== 'function') {
+        logWithStyle('Error: Missing or invalid callback function in audioBlobToBase64.', 'error');
         return;
     }
-    for (let i = 1; i <= stopRecorder; i++) {
-        var element_id = 'ses_rec_' + String(i).padStart(2, '0');
-        const region = document.getElementById(element_id);
-        if (region) {
-            if (i === sessionCount) {
-                region.style.display = 'block';
-            } else {
-                region.style.display = 'none';
-            }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+
+    reader.onloadend = function () {
+        const base64Data = reader.result.split(',')[1]; // Extract Base64 part
+        callback(base64Data);
+        logWithStyle('Finished audioBlobToBase64 conversion.', 'info');
+    };
+
+    reader.onerror = function (error) {
+        logWithStyle('Error during audioBlobToBase64 conversion: ' + error, 'error');
+    };
+}
+
+function checkAudioHolders(pagePrefix, startRange, endRange) {
+    let emptyCount = 0;
+    let populatedCount = 0;
+    let firstPopulated = [];
+    let lastPopulated = null;
+
+    logWithStyle(`Checking audio holders from ${startRange} to ${endRange}`, 'info');
+
+    for (let i = startRange; i <= endRange; i++) {
+        let itemId = pagePrefix + 'AUDIO_HOLDER_' + i;
+        let itemValue = $v(itemId);
+
+        if (!itemValue || itemValue.trim() === '') {
+            emptyCount++;
         } else {
-            logWithStyle('Element ' + element_id + ' was not found', 'error');
+            populatedCount++;
+            if (firstPopulated.length < 3) {
+                firstPopulated.push({itemId, itemValue: itemValue.substring(0, 30)});
+            }
+            lastPopulated = {itemId, itemValue: itemValue.substring(0, 30)};
         }
     }
+
+    if (firstPopulated.length > 0) {
+        logWithStyle('First 3 populated items:', 'info');
+        firstPopulated.forEach(item => {
+            logWithStyle(`Item: ${item.itemId}, Value: ${item.itemValue}`, 'info');
+        });
+    }
+
+    if (lastPopulated) {
+        logWithStyle('Last populated item:', 'info');
+        logWithStyle(`Item: ${lastPopulated.itemId}, Value: ${lastPopulated.itemValue}`, 'info');
+    }
+
+    logWithStyle(`Total populated items: ${populatedCount}`, 'info');
+    logWithStyle(`Total empty items: ${emptyCount}`, 'info');
 }
+
+function clearSequencedItems(pagePrefix, itemName, fromRange, toRange) {
+    let clearedCount = 0;
+    let notClearedCount = 0;
+
+    for (let i = fromRange; i <= toRange; i++) {
+        let itemId = pagePrefix + itemName + '_' + i;
+        let itemElem = apex.item(itemId);
+
+        if (itemElem) {
+            itemElem.setValue('');
+        }
+    }
+
+    for (let i = fromRange; i <= toRange; i++) {
+        let itemId = pagePrefix + itemName + '_' + i;
+        let itemElem = apex.item(itemId);
+
+        if (itemElem && itemElem.getValue() === '') {
+            clearedCount++;
+        } else {
+            notClearedCount++;
+        }
+    }
+
+    // Log the results to the console
+    if (itemName) {
+        logWithStyle(`Total ${itemName} items cleared: ${clearedCount}`, 'info');
+        logWithStyle(`Total ${itemName} items not cleared: ${notClearedCount}`, 'warn');
+    } else {
+        logWithStyle(`Total items cleared: ${clearedCount}`, 'info');
+        logWithStyle(`Total items not cleared: ${notClearedCount}`, 'warn');
+    }
+}
+
 function createRegionAndItems(sessionCount, mainRegion, pageNumber, stopRecorder, visibleSession) {
     logWithStyle('Starting function createRegionAndItems.', 'info');
 
@@ -204,64 +381,6 @@ function createRegionAndItems(sessionCount, mainRegion, pageNumber, stopRecorder
     logWithStyle('Finished creating region for session ' + sessionCount, 'info');
 }
 
-function updateMediaPlayerTimer(mediaPlayer, isRecording, mediaPlayerTimer, recordingStartTime) {
-    logWithStyle('Updating media player timer...', 'info');
-
-    if (mediaPlayer === undefined || mediaPlayer === null) {
-        logWithStyle('Missing parameter: mediaPlayer', 'error');
-    }
-    if (isRecording === undefined || isRecording === null) {
-        logWithStyle('Missing parameter: isRecording', 'error');
-        return;
-    }
-    if (mediaPlayerTimer === undefined || mediaPlayerTimer === null) {
-        logWithStyle('Missing parameter: mediaPlayerTimer', 'error');
-        return;
-    }
-    if (recordingStartTime === undefined || recordingStartTime === null) {
-        logWithStyle('Missing parameter: recordingStartTime', 'error');
-        return;
-    }
-
-    if (isRecording) {
-        recordingStartTime = Date.now(); // Start the timer
-        logWithStyle('Recording started, initializing timer...', 'info');
-
-        mediaPlayerTimer = setInterval(function () {
-            const elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
-            mediaPlayer.innerText = `Recording... ${elapsedSeconds} sec`;
-            logWithStyle(`Media player updated: ${elapsedSeconds} sec elapsed`, 'info');
-        }, 1000);  // Update every second
-    } else {
-        clearInterval(mediaPlayerTimer);
-        logWithStyle('Recording stopped, media player timer cleared.', 'info');
-    }
-
-    return { mediaPlayerTimer, recordingStartTime };  // Return the updated values
-}
-function stopMediaPlayerTimer(mediaPlayer, mediaPlayerTimer, recordingStartTime) {
-    logWithStyle('Stopping media player timer...', 'info');
-
-    if (mediaPlayer === undefined || mediaPlayer === null) {
-        logWithStyle('Missing parameter: mediaPlayer', 'error');
-    }
-    if (mediaPlayerTimer === undefined || mediaPlayerTimer === null) {
-        logWithStyle('Missing parameter: mediaPlayerTimer', 'error');
-        return;
-    }
-    if (recordingStartTime === undefined || recordingStartTime === null) {
-        logWithStyle('Missing parameter: recordingStartTime', 'error');
-        return;
-    }
-
-    clearInterval(mediaPlayerTimer);  // Stop the timer
-
-    const recordedDuration = Math.floor((Date.now() - recordingStartTime) / 1000);
-    mediaPlayer.innerText = `Recording completed: ${recordedDuration} sec`;
-    logWithStyle(`Recording completed. Total duration: ${recordedDuration} seconds.`, 'info');
-
-    return mediaPlayerTimer;  // Return updated timer (should be null)
-}
 function downloadAudioBlob(blob, filename) {
     if (!blob) {
         logWithStyle('No blob provided for download.', 'error');
@@ -287,350 +406,55 @@ function downloadAudioBlob(blob, filename) {
 
     logWithStyle(`Audio blob downloaded as ${filename}`, 'info');
 }
-function fetchPrompts(pageNumber, recordingsNeeded) {
 
-    apex.server.process('FETCH_PROMPTS', {}, {
-        success: function (data) {
-            logWithStyle('Raw data: ' + JSON.stringify(data));  // Log raw data
+function downloadCustomTextFile(chunks, filename = 'audio_chunks', userTracker = null, sessionCount = null) {
+    let chunkCounter = 1;
+    let cumulativeSize = 0;
+    let fileContent = '';
 
-            var parsedData;
-            if (typeof data === 'object') {
-                parsedData = data;
-            } else {
-                parsedData = JSON.parse(data);  // Parse if it's not an object
-            }
+    // Add user tracker and session count if provided
+    if (userTracker && sessionCount) {
+        filename += `_${userTracker}_rec${sessionCount}_${Date.now()}.txt`;
+    } else if (userTracker || sessionCount) {
+        filename += `_${userTracker || 'unknownUser'}_rec${sessionCount || 'unknownSession'}_${Date.now()}.txt`;
+    } else {
+        filename += `_${Date.now()}.txt`;
+    }
 
-            logWithStyle('Parsed data: ' + JSON.stringify(parsedData));  // Log parsed data
+    // Process each chunk
+    chunks.forEach(chunk => {
+        const chunkSize = chunk.length;
+        cumulativeSize += chunkSize;
 
-            var minTrxId = parsedData.min_trx_id;
+        // Preface each chunk with the necessary information
+        const chunkHeader = `AUDIO_HOLDER_${chunkCounter}, length=${chunkSize}, cumulative=${cumulativeSize}\n`;
+        const chunkPreview = `chunk(first 200 chars): ${chunk.slice(0, 200)}\nchunk(last 200 chars): ${chunk.slice(-200)}\n`;
 
-            // Set minTrxId dynamically based on the page number
-            var minTrxIdItem = 'P' + pageNumber + '_MIN_TRX_ID';
-            $s(minTrxIdItem, minTrxId);  // Set the value in APEX
-            logWithStyle(minTrxIdItem + " set to: " + minTrxId);  // Log the change
+        // Append chunk header and preview to the content
+        fileContent += `${chunkHeader}${chunkPreview}\n`;
 
-            // Set the audio box dynamically
-            var currentAudioBoxItem = 'P' + pageNumber + '_CURRENT_AUDIO_BOX';
-            $s(currentAudioBoxItem, minTrxId);  // Set the value in APEX
-            logWithStyle(currentAudioBoxItem + " set to: " + minTrxId);  // Log the change
-
-            // Call the assignJsonToItems function, pass parsedData.prompts and recordingsNeeded
-            assignJsonToItems(parsedData.prompts, recordingsNeeded);
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error retrieving data:', textStatus, errorThrown);  // Keep this as error logging
-        }
+        // Increment the chunk counter
+        chunkCounter++;
     });
-}
-function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, controlSetting = 'start') {
-    logWithStyle('Handling recording control states...', 'info');
 
-    if (!startButton) {
-        logWithStyle('Missing parameter: startButton', 'error');
-        return false;
-    }
-    if (!stopButton) {
-        logWithStyle('Missing parameter: stopButton', 'error');
-        return false;
-    }
-    if (!saveButton) {
-        logWithStyle('Missing parameter: saveButton', 'error');
-        return false;
-    }
-    if (!audioPlayer) {
-        logWithStyle('Missing parameter: audioPlayer', 'error');
-        return false;
-    }
+    // Create a Blob with the file content
+    const blob = new Blob([fileContent], {type: 'text/plain'});
 
-    if (controlSetting === 'start') {
-        startButton.disabled = true;
-        saveButton.disabled = true;
-        stopButton.style.backgroundColor = '';
-        audioPlayer.disabled = true;
-        audioPlayer.style.opacity = '1';
-        startButton.classList.add('flashing');
+    // Create a link element to trigger the download
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
 
-        logWithStyle('Start button disabled, stop button enabled, flashing started.', 'info');
+    // Append link to the document and trigger the download
+    document.body.appendChild(link);
+    link.click();
 
-        recordingStartTime = Date.now();
-        logWithStyle('Recording started at ' + new Date(recordingStartTime).toLocaleTimeString(), 'info');
+    // Clean up by removing the link from the document
+    document.body.removeChild(link);
 
-        mediaPlayerTimer = setInterval(function () {
-            var elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
-            audioPlayer.innerText = 'Recording... ' + elapsedSeconds + ' sec';
-            logWithStyle('Media player updated: ' + elapsedSeconds + ' sec elapsed', 'info');
-        }, 1000);
-
-        setTimeout(function() {
-            stopButton.disabled = false;
-            logWithStyle('Stop button enabled after 3 seconds.', 'info');
-        }, 3000);
-
-    } else if (controlSetting === 'stop') {
-        stopButton.disabled = true;
-        saveButton.style.backgroundColor = '';
-        audioPlayer.disabled = false;
-        startButton.classList.remove('flashing');
-
-        logWithStyle('Stop button disabled,  flashing stopped.', 'info');
-
-        if (recordingStartTime) {
-            var elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
-            logWithStyle('Recording stopped after ' + elapsedSeconds + ' seconds.', 'info');
-        }
-
-        if (mediaPlayerTimer) {
-            clearInterval(mediaPlayerTimer);
-            logWithStyle('Media player timer cleared.', 'info');
-        }
-
-        setTimeout(function() {
-            startButton.disabled = false;
-            logWithStyle('Start button enabled after 3 seconds.', 'info');
-        }, 1000);
-
-        setTimeout(function() {
-            saveButton.disabled = false;
-            saveButton.style.backgroundColor = '';
-            logWithStyle('Save button enabled after 3 seconds.', 'info');
-        }, 1000);
-
-    } else if (controlSetting === 'submit' || controlSetting === 'save') {
-        startButton.disabled = false; // **Fix: Start button re-enabled after Save**
-        stopButton.disabled = true;
-        saveButton.disabled = true;
-        audioPlayer.disabled = true;
-
-        logWithStyle('All buttons disabled, recording process complete.', 'info');
-
-        if (mediaPlayerTimer) {
-            clearInterval(mediaPlayerTimer);
-            logWithStyle('Media player timer cleared on submission.', 'info');
-        }
-    } else {
-        logWithStyle('Invalid control setting: ' + controlSetting, 'error');
-        return false;
-    }
-
-    return true;
-}
-async function initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile) {
-    try {
-        let audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
-        await audioContext.audioWorklet.addModule(audioProcessorJSFile);
-
-        let processorNode = new AudioWorkletNode(audioContext, 'audio-processor');
-        let audioDataChunks = [];
-
-        processorNode.port.onmessage = (event) => {
-            let chunk = event.data;
-            if (!(chunk instanceof Float32Array)) {
-                chunk = new Float32Array(chunk);
-            }
-            audioDataChunks.push(chunk);
-            logWithStyle('Received audio chunk, size: ' + chunk.length, 'info');
-        };
-
-        let stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount } });
-        const source = audioContext.createMediaStreamSource(stream);
-        source.connect(processorNode);
-        processorNode.connect(audioContext.destination);
-
-        logWithStyle('AudioWorklet initialized with sampleRate: ' + sampleRate + ', channelCount: ' + channelCount, 'info');
-
-        // Return necessary objects for further use
-        return {
-            audioContext: audioContext,
-            processorNode: processorNode,
-            stream: stream,
-            audioDataChunks: audioDataChunks
-        };
-    } catch (error) {
-        logWithStyle('Failed to initialize AudioWorkletNode: ' + error, 'error');
-        // Fallback to MediaRecorder
-        return null
-    }
-}
-async function initMediaRecorder(constraints) {
-    try {
-        let stream = await navigator.mediaDevices.getUserMedia(constraints);
-        let mediaRecorder = new MediaRecorder(stream);
-
-        logWithStyle('New MediaRecorder initialized.', 'info');
-        return { mediaRecorder, stream };
-    } catch (error) {
-        logWithStyle('Failed to initialize MediaRecorder: ' + error, 'error');
-        throw error; // Let the caller handle the error if needed
-    }
-}
-function clearSequencedItems(pagePrefix, itemName, fromRange, toRange) {
-    let clearedCount = 0;
-    let notClearedCount = 0;
-
-    for (let i = fromRange; i <= toRange; i++) {
-        let itemId = pagePrefix + itemName + '_' + i;
-        let itemElem = apex.item(itemId);
-
-        if (itemElem) {
-            itemElem.setValue('');
-        }
-    }
-
-    for (let i = fromRange; i <= toRange; i++) {
-        let itemId = pagePrefix + itemName + '_' + i;
-        let itemElem = apex.item(itemId);
-
-        if (itemElem && itemElem.getValue() === '') {
-            clearedCount++;
-        } else {
-            notClearedCount++;
-        }
-    }
-
-    // Log the results to the console
-    if (itemName) {
-        logWithStyle(`Total ${itemName} items cleared: ${clearedCount}`, 'info');
-        logWithStyle(`Total ${itemName} items not cleared: ${notClearedCount}`, 'warn');
-    } else {
-        logWithStyle(`Total items cleared: ${clearedCount}`, 'info');
-        logWithStyle(`Total items not cleared: ${notClearedCount}`, 'warn');
-    }
-}
-function audioBlobToBase64(blob, callback) {
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = function() {
-        const base64Data = reader.result.split(',')[1];
-        callback(base64Data);
-    };
-}
-function audioBlobToBase64(blob, callback) {
-    logWithStyle('Starting audioBlobToBase64 conversion.', 'info');
-
-    // Check if required parameters are provided
-    if (!blob) {
-        logWithStyle('Error: Missing blob parameter in audioBlobToBase64.', 'error');
-        return;
-    }
-    if (typeof callback !== 'function') {
-        logWithStyle('Error: Missing or invalid callback function in audioBlobToBase64.', 'error');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-
-    reader.onloadend = function() {
-        const base64Data = reader.result.split(',')[1]; // Extract Base64 part
-        callback(base64Data);
-        logWithStyle('Finished audioBlobToBase64 conversion.', 'info');
-    };
-
-    reader.onerror = function(error) {
-        logWithStyle('Error during audioBlobToBase64 conversion: ' + error, 'error');
-    };
-}
-function splitBase64AudioData(base64Data, maxLength) {
-    logWithStyle('Starting splitBase64AudioData.', 'info');
-
-    // Check if parameters are provided and valid
-    if (!base64Data) {
-        logWithStyle('Error: Missing base64Data parameter in splitBase64AudioData.', 'error');
-        return [];
-    }
-    if (!maxLength || typeof maxLength !== 'number') {
-        logWithStyle('Error: Invalid maxLength parameter in splitBase64AudioData.', 'error');
-        return [];
-    }
-
-    let chunks = [];
-    for (let i = 0; i < base64Data.length; i += maxLength) {
-        chunks.push(base64Data.substring(i, i + maxLength));
-    }
-
-    logWithStyle('Finished splitBase64AudioData. Total chunks created: ' + chunks.length, 'info');
-    return chunks;
-}
-function assignAudioChunksToHolders(base64Chunks, pagePrefix, startHolderId) {
-    logWithStyle('Starting assignAudioChunksToHolders.', 'info');
-
-    if (!base64Chunks || !Array.isArray(base64Chunks) || base64Chunks.length === 0) {
-        logWithStyle('Error: Invalid base64Chunks array in assignAudioChunksToHolders.', 'error');
-        return 0;
-    }
-    if (!pagePrefix || typeof pagePrefix !== 'string') {
-        logWithStyle('Error: Missing or invalid pagePrefix in assignAudioChunksToHolders.', 'error');
-        return 0;
-    }
-    if (!startHolderId || typeof startHolderId !== 'number') {
-        logWithStyle('Error: Missing or invalid startHolderId in assignAudioChunksToHolders.', 'error');
-        return 0;
-    }
-
-    let itemsAssigned = 0;
-    let firstItemId = '';
-    let lastItemId = '';
-
-    for (let i = 0; i < base64Chunks.length; i++) {
-        let itemId = pagePrefix + 'AUDIO_HOLDER_' + (startHolderId + i);
-        let apexItem = document.getElementById(itemId);
-
-        if (apexItem) {
-            apex.item(itemId).setValue(base64Chunks[i]);
-            itemsAssigned++;
-
-            if (itemsAssigned === 1) {
-                firstItemId = itemId;
-            }
-
-            lastItemId = itemId;
-        }
-    }
-
-    logWithStyle(`Finished assignAudioChunksToHolders. Total items assigned: ${itemsAssigned}`, 'info');
-    logWithStyle(`First item assigned: ${firstItemId}`, 'info');
-    logWithStyle(`Last item assigned: ${lastItemId}`, 'info');
-    return itemsAssigned;
+    console.log(`Download triggered for file: ${filename}`);
 }
 
-function checkAudioHolders(pagePrefix, startRange, endRange) {
-    let emptyCount = 0;
-    let populatedCount = 0;
-    let firstPopulated = [];
-    let lastPopulated = null;
-
-    logWithStyle(`Checking audio holders from ${startRange} to ${endRange}`, 'info');
-
-    for (let i = startRange; i <= endRange; i++) {
-        let itemId = pagePrefix + 'AUDIO_HOLDER_' + i;
-        let itemValue = $v(itemId);
-
-        if (!itemValue || itemValue.trim() === '') {
-            emptyCount++;
-        } else {
-            populatedCount++;
-            if (firstPopulated.length < 3) {
-                firstPopulated.push({ itemId, itemValue: itemValue.substring(0, 30) });
-            }
-            lastPopulated = { itemId, itemValue: itemValue.substring(0, 30) };
-        }
-    }
-
-    if (firstPopulated.length > 0) {
-        logWithStyle('First 3 populated items:', 'info');
-        firstPopulated.forEach(item => {
-            logWithStyle(`Item: ${item.itemId}, Value: ${item.itemValue}`, 'info');
-        });
-    }
-
-    if (lastPopulated) {
-        logWithStyle('Last populated item:', 'info');
-        logWithStyle(`Item: ${lastPopulated.itemId}, Value: ${lastPopulated.itemValue}`, 'info');
-    }
-
-    logWithStyle(`Total populated items: ${populatedCount}`, 'info');
-    logWithStyle(`Total empty items: ${emptyCount}`, 'info');
-}
 function enableNextSessionFromItem(sessionCount, pagePrefix, totalSessions) {
     logWithStyle('Starting enableNextSessionFromItem.', 'info');
 
@@ -673,54 +497,244 @@ function enableNextSessionFromItem(sessionCount, pagePrefix, totalSessions) {
 
     logWithStyle('Finished enableNextSessionFromItem. Total sessions processed: ' + itemsAssigned, 'info');
 }
-function downloadCustomTextFile(chunks, filename = 'audio_chunks', userTracker = null, sessionCount = null) {
-    let chunkCounter = 1;
-    let cumulativeSize = 0;
-    let fileContent = '';
 
-    // Add user tracker and session count if provided
-    if (userTracker && sessionCount) {
-        filename += `_${userTracker}_rec${sessionCount}_${Date.now()}.txt`;
-    } else if (userTracker || sessionCount) {
-        filename += `_${userTracker || 'unknownUser'}_rec${sessionCount || 'unknownSession'}_${Date.now()}.txt`;
-    } else {
-        filename += `_${Date.now()}.txt`;
+function enableOnlyNextSession(sessionCount, stopRecorder) {
+    console.log("Using function enableOnlyNextSession(sessionCount, stopRecorder))");
+    console.log("sessionCount is equivalent to the number of the current recording.")
+    console.log("stopRecorder is equivalent to the number of recordings needed.")
+    if (sessionCount === undefined || sessionCount === null) {
+        logWithStyle('Missing parameter: sessionCount', 'error');
+        return;
     }
-
-    // Process each chunk
-    chunks.forEach(chunk => {
-        const chunkSize = chunk.length;
-        cumulativeSize += chunkSize;
-
-        // Preface each chunk with the necessary information
-        const chunkHeader = `AUDIO_HOLDER_${chunkCounter}, length=${chunkSize}, cumulative=${cumulativeSize}\n`;
-        const chunkPreview = `chunk(first 200 chars): ${chunk.slice(0, 200)}\nchunk(last 200 chars): ${chunk.slice(-200)}\n`;
-
-        // Append chunk header and preview to the content
-        fileContent += `${chunkHeader}${chunkPreview}\n`;
-
-        // Increment the chunk counter
-        chunkCounter++;
-    });
-
-    // Create a Blob with the file content
-    const blob = new Blob([fileContent], { type: 'text/plain' });
-
-    // Create a link element to trigger the download
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-
-    // Append link to the document and trigger the download
-    document.body.appendChild(link);
-    link.click();
-
-    // Clean up by removing the link from the document
-    document.body.removeChild(link);
-
-    console.log(`Download triggered for file: ${filename}`);
+    if (stopRecorder === undefined || stopRecorder === null) {
+        logWithStyle('Missing parameter: stopRecorder', 'error');
+        return;
+    }
+    for (let i = 1; i <= stopRecorder; i++) {
+        let element_id = 'ses_rec_' + String(i).padStart(2, '0');
+        const region = document.getElementById(element_id);
+        if (region) {
+            if (i === sessionCount) {
+                region.style.display = 'block';
+            } else {
+                region.style.display = 'none';
+            }
+        } else {
+            logWithStyle('Element ' + element_id + ' was not found', 'error');
+        }
+    }
 }
 
-function hi_from_utilities() { return 'Hi from Utilities'; }
+function fetchPrompts(pageNumber, recordingsNeeded) {
 
-//test line
+    apex.server.process('FETCH_PROMPTS', {}, {
+        success: function (data) {
+            logWithStyle('Raw data: ' + JSON.stringify(data));  // Log raw data
+
+            let parsedData;
+            if (typeof data === 'object') {
+                parsedData = data;
+            } else {
+                parsedData = JSON.parse(data);  // Parse if it's not an object
+            }
+
+            logWithStyle('Parsed data: ' + JSON.stringify(parsedData));  // Log parsed data
+
+            let minTrxId = parsedData.min_trx_id;
+
+            // Set minTrxId dynamically based on the page number
+            let minTrxIdItem = 'P' + pageNumber + '_MIN_TRX_ID';
+            $s(minTrxIdItem, minTrxId);  // Set the value in APEX
+            logWithStyle(minTrxIdItem + " set to: " + minTrxId);  // Log the change
+
+            // Set the audio box dynamically
+            let currentAudioBoxItem = 'P' + pageNumber + '_CURRENT_AUDIO_BOX';
+            $s(currentAudioBoxItem, minTrxId);  // Set the value in APEX
+            logWithStyle(currentAudioBoxItem + " set to: " + minTrxId);  // Log the change
+
+            // Call the assignJsonToItems function, pass parsedData.prompts and recordingsNeeded
+            assignJsonToItems(parsedData.prompts, recordingsNeeded);
+        }, error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error retrieving data:', textStatus, errorThrown);  // Keep this as error logging
+        }
+    });
+}
+
+function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, controlSetting = 'start') {
+    logWithStyle('Handling recording control states...', 'info');
+
+    if (!startButton) {
+        logWithStyle('Missing parameter: startButton', 'error');
+        return false;
+    }
+    if (!stopButton) {
+        logWithStyle('Missing parameter: stopButton', 'error');
+        return false;
+    }
+    if (!saveButton) {
+        logWithStyle('Missing parameter: saveButton', 'error');
+        return false;
+    }
+    if (!audioPlayer) {
+        logWithStyle('Missing parameter: audioPlayer', 'error');
+        return false;
+    }
+
+    if (controlSetting === 'start') {
+        startButton.disabled = true;
+        saveButton.disabled = true;
+        stopButton.style.backgroundColor = '';
+        audioPlayer.disabled = true;
+        audioPlayer.style.opacity = '1';
+        startButton.classList.add('flashing');
+
+        logWithStyle('Start button disabled, stop button enabled, flashing started.', 'info');
+
+        recordingStartTime = Date.now();
+        logWithStyle('Recording started at ' + new Date(recordingStartTime).toLocaleTimeString(), 'info');
+
+        mediaPlayerTimer = setInterval(function () {
+            let elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
+            audioPlayer.innerText = 'Recording... ' + elapsedSeconds + ' sec';
+            logWithStyle('Media player updated: ' + elapsedSeconds + ' sec elapsed', 'info');
+        }, 1000);
+
+        setTimeout(function () {
+            stopButton.disabled = false;
+            logWithStyle('Stop button enabled after 3 seconds.', 'info');
+        }, 3000);
+
+    } else if (controlSetting === 'stop') {
+        stopButton.disabled = true;
+        saveButton.style.backgroundColor = '';
+        audioPlayer.disabled = false;
+        startButton.classList.remove('flashing');
+
+        logWithStyle('Stop button disabled,  flashing stopped.', 'info');
+
+        if (recordingStartTime) {
+            let elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
+            logWithStyle('Recording stopped after ' + elapsedSeconds + ' seconds.', 'info');
+        }
+
+        if (mediaPlayerTimer) {
+            clearInterval(mediaPlayerTimer);
+            logWithStyle('Media player timer cleared.', 'info');
+        }
+
+        setTimeout(function () {
+            startButton.disabled = false;
+            logWithStyle('Start button enabled after 3 seconds.', 'info');
+        }, 2000);
+
+        setTimeout(function () {
+            saveButton.disabled = false;
+            saveButton.style.backgroundColor = '';
+            logWithStyle('Save button enabled after 3 seconds.', 'info');
+        }, 2000);
+
+    } else if (controlSetting === 'submit' || controlSetting === 'save') {
+        startButton.disabled = false; // **Fix: Start button re-enabled after Save**
+        stopButton.disabled = true;
+        saveButton.disabled = true;
+        audioPlayer.disabled = true;
+
+        logWithStyle('All buttons disabled, recording process complete.', 'info');
+
+        if (mediaPlayerTimer) {
+            clearInterval(mediaPlayerTimer);
+            logWithStyle('Media player timer cleared on submission.', 'info');
+        }
+    } else {
+        logWithStyle('Invalid control setting: ' + controlSetting, 'error');
+        return false;
+    }
+
+    return true;
+}
+
+function splitBase64AudioData(base64Data, maxLength) {
+    logWithStyle('Starting splitBase64AudioData.', 'info');
+
+    // Check if parameters are provided and valid
+    if (!base64Data) {
+        logWithStyle('Error: Missing base64Data parameter in splitBase64AudioData.', 'error');
+        return [];
+    }
+    if (!maxLength || typeof maxLength !== 'number') {
+        logWithStyle('Error: Invalid maxLength parameter in splitBase64AudioData.', 'error');
+        return [];
+    }
+
+    let chunks = [];
+    for (let i = 0; i < base64Data.length; i += maxLength) {
+        chunks.push(base64Data.substring(i, i + maxLength));
+    }
+
+    logWithStyle('Finished splitBase64AudioData. Total chunks created: ' + chunks.length, 'info');
+    return chunks;
+}
+
+function stopMediaPlayerTimer(mediaPlayer, mediaPlayerTimer, recordingStartTime) {
+    logWithStyle('Stopping media player timer...', 'info');
+
+    if (mediaPlayer === undefined || mediaPlayer === null) {
+        logWithStyle('Missing parameter: mediaPlayer', 'error');
+    }
+    if (mediaPlayerTimer === undefined || mediaPlayerTimer === null) {
+        logWithStyle('Missing parameter: mediaPlayerTimer', 'error');
+        return;
+    }
+    if (recordingStartTime === undefined || recordingStartTime === null) {
+        logWithStyle('Missing parameter: recordingStartTime', 'error');
+        return;
+    }
+
+    clearInterval(mediaPlayerTimer);  // Stop the timer
+
+    const recordedDuration = Math.floor((Date.now() - recordingStartTime) / 1000);
+    mediaPlayer.innerText = `Recording completed: ${recordedDuration} sec`;
+    logWithStyle(`Recording completed. Total duration: ${recordedDuration} seconds.`, 'info');
+
+    return mediaPlayerTimer;  // Return updated timer (should be null)
+}
+
+function updateMediaPlayerTimer(mediaPlayer, isRecording, mediaPlayerTimer, recordingStartTime) {
+    logWithStyle('Updating media player timer...', 'info');
+
+    if (mediaPlayer === undefined || mediaPlayer === null) {
+        logWithStyle('Missing parameter: mediaPlayer', 'error');
+    }
+    if (isRecording === undefined || isRecording === null) {
+        logWithStyle('Missing parameter: isRecording', 'error');
+        return;
+    }
+    if (mediaPlayerTimer === undefined || mediaPlayerTimer === null) {
+        logWithStyle('Missing parameter: mediaPlayerTimer', 'error');
+        return;
+    }
+    if (recordingStartTime === undefined || recordingStartTime === null) {
+        logWithStyle('Missing parameter: recordingStartTime', 'error');
+        return;
+    }
+
+    if (isRecording) {
+        recordingStartTime = Date.now(); // Start the timer
+        logWithStyle('Recording started, initializing timer...', 'info');
+
+        mediaPlayerTimer = setInterval(function () {
+            const elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
+            mediaPlayer.innerText = `Recording... ${elapsedSeconds} sec`;
+            logWithStyle(`Media player updated: ${elapsedSeconds} sec elapsed`, 'info');
+        }, 1000);  // Update every second
+    } else {
+        clearInterval(mediaPlayerTimer);
+        logWithStyle('Recording stopped, media player timer cleared.', 'info');
+    }
+
+    return {mediaPlayerTimer, recordingStartTime};  // Return the updated values
+}
+
+function hi_from_utilities() {
+    return 'Hi from Utilities';
+}
