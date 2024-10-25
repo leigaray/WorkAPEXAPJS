@@ -25,12 +25,12 @@ function logElementValue(elementId) {
     if (element) {
         const value = element.val();
         if (value === undefined || value === null || value === '') {
-            logWithStyle(elementId + ': NONE', 'warn');
+            //logWithStyle(elementId + ': NONE', 'warn');
         } else {
-            logWithStyle(elementId + ': ' + value);
+            //logWithStyle(elementId + ': ' + value);
         }
     } else {
-        logWithStyle(elementId + ' not found.', 'warn');
+        //logWithStyle(elementId + ' not found.', 'warn');
     }
 }
 
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
         fetchPrompts(pageNumber, recordingsNeeded);
 
         // Proceed with additional setup here, e.g., control states, recording handlers
-        logWithStyle('DOM fully loaded and parsed', 'info');
+        //logWithStyle('DOM fully loaded and parsed', 'info');
 
         const mainRegion = document.getElementById('main_region');
         if (!mainRegion) {
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
         // Function to handle recording states
         function handleRecording(sessionCount, startButton, stopButton, saveButton, audioPlayer) {
             startButton.addEventListener('click', async function () {
-                logWithStyle('Start button clicked for session ' + sessionCount, 'info');
+                //logWithStyle('Start button clicked for session ' + sessionCount, 'info');
                 clearSequencedItems(pagePrefix, 'AUDIO_HOLDER', 1, 350) ;
                 handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, 'start');
 
@@ -124,15 +124,15 @@ document.addEventListener('DOMContentLoaded', function (event) {
                         stream = result.stream;
                         audioDataChunks = result.audioDataChunks;
                     } else {
-                        logWithStyle('Failed to initialize AudioWorkletNode. Fallback required.', 'error');
+                        //logWithStyle('Failed to initialize AudioWorkletNode. Fallback required.', 'error');
                     }
                 } catch (error) {
-                    logWithStyle('Error starting recording: ' + error.message, 'error');
+                    //logWithStyle('Error starting recording: ' + error.message, 'error');
                 }
             });
 
             stopButton.addEventListener('click', function () {
-                logWithStyle('Stop button clicked for session ' + sessionCount, 'info');
+                //logWithStyle('Stop button clicked for session ' + sessionCount, 'info');
 
                 // Update recording control states
                 handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, 'stop');
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
                 if (stream) {
                     const tracks = stream.getTracks();
                     tracks.forEach(track => track.stop());
-                    logWithStyle('Audio stream stopped.', 'info');
+                    //logWithStyle('Audio stream stopped.', 'info');
                 }
 
 
@@ -152,18 +152,18 @@ document.addEventListener('DOMContentLoaded', function (event) {
                 const audioUrl = URL.createObjectURL(wavBlob);
                 audioPlayer.src = audioUrl;
                 audioPlayer.load();
-                logWithStyle('Audio loaded into player.', 'info');
+                //logWithStyle('Audio loaded into player.', 'info');
 
                 // Convert the audio blob to Base64 and process it
                 audioBlobToBase64(wavBlob, function(base64Audio) {
-                    logWithStyle('Audio data converted to Base64 for processing.', 'info');
+                    //logWithStyle('Audio data converted to Base64 for processing.', 'info');
 
                     // Split the Base64 audio data into chunks of 30,000 characters each
                     const maxChunkSize = 30000;
                     const audioChunks = splitBase64AudioData(base64Audio, maxChunkSize);
 
                     if (audioChunks.length === 0) {
-                        logWithStyle('No audio data available after splitting.', 'error');
+                        //logWithStyle('No audio data available after splitting.', 'error');
                         return;
                     }
 
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
                     const audioHoldersCapacity = 350;  // The total number of available holders
                     const itemsAssigned = assignAudioChunksToHolders(audioChunks, pagePrefix, 1);
 
-                    logWithStyle(`Audio data has been assigned to ${itemsAssigned} page items.`, 'info');
+                    //logWithStyle(`Audio data has been assigned to ${itemsAssigned} page items.`, 'info');
 
                     // combine the chunks and download as a text file for debugging
                     const combinedChunks = audioChunks.join('\n');
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
                         debugFilename = 'audio_recording';
                         downloadCustomTextFile(audioChunks, debugFilename, userTracker, sessionCount);
                         downloadAudioBlob(wavBlob, debugFilename);
-                        logWithStyle('Audio chunks saved to text file for debugging.', 'info');
+                        //logWithStyle('Audio chunks saved to text file for debugging.', 'info');
                     }
 
 
@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
 
 
             saveButton.addEventListener('click', function () {
-                logWithStyle('Save button clicked for session ' + sessionCount, 'info');
+                //logWithStyle('Save button clicked for session ' + sessionCount, 'info');
 
                 // Disable buttons during processing
                 saveButton.disabled = true;
