@@ -176,10 +176,20 @@ function createRegionAndItems(sessionCount, mainRegion, pageNumber, stopRecorder
     audioPlayer.style.opacity = '0.5';
     audioPlayerContainer.appendChild(audioPlayer);
 
+    // Add a logging container to display messages for this session
+    const loggingContainer = document.createElement('div');
+    loggingContainer.id = 'P' + pageNumber + '_LOGGING_' + sessionCount;
+    loggingContainer.classList.add('logging-container');
+    loggingContainer.style.color = 'blue';
+    loggingContainer.style.fontStyle = 'italic';
+    loggingContainer.style.padding = '5px';
+    regionContainer.appendChild(loggingContainer);
+
     // Append the elements to the region container
     regionContainer.appendChild(promptContainer);
     regionContainer.appendChild(buttonContainer);
     regionContainer.appendChild(audioPlayerContainer);
+    regionContainer.appendChild(loggingContainer);
 
     // Append the region container to the main region
     mainRegion.appendChild(regionContainer);
@@ -200,6 +210,16 @@ function createRegionAndItems(sessionCount, mainRegion, pageNumber, stopRecorder
             }, 7000);
         });
     }
+
+    function logMessage(message, type = 'info') {
+        const loggingElement = document.getElementById('P' + pageNumber + '_LOGGING_' + sessionCount);
+        if (loggingElement) {
+            loggingElement.innerText = `[${type.toUpperCase()}] ${message}`;
+        }
+        console[type === 'error' ? 'error' : 'log'](message);  // Fallback console logging
+    }
+
+    logMessage(`Session ${sessionCount} region created and initialized.`);
 
     //logWithStyle('Finished creating region for session ' + sessionCount, 'info');
 }
