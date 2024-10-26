@@ -9,14 +9,16 @@ function logWithStyle(message, level = 'info', onlyError = true) {
             if (!onlyError) {
                 style += 'color: #90ee90';
                 console.log('%c FGVD - ' + message, style);
-                break;
             }
+            break;
+
         case 'warn':
             if (!onlyError) {
                 style += 'color: yellow';
                 console.warn('%c FGVD - ' + message, style);
-                break;
             }
+            break;
+
         case 'error':
             style += 'color: red';
             console.error('%c FGVD - ' + message, style);
@@ -25,12 +27,14 @@ function logWithStyle(message, level = 'info', onlyError = true) {
             if (!onlyError) {
                 style += 'color: orange';
                 console.warn('%c FGVD - ' + message, style);
-                break;
             }
+            break;
+
         default:
             console.log('%c FGVD - ' + message, style);
     }
 }
+
 // start the timer and update the display
 function startTimer(loggingElement) {
     startTime = Date.now();
@@ -41,6 +45,7 @@ function startTimer(loggingElement) {
         loggingElement.innerText = `Recording... Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }, 1000);
 }
+
 // stop the timer and show final time
 function stopTimer(loggingElement) {
     clearInterval(timerInterval);
@@ -50,6 +55,7 @@ function stopTimer(loggingElement) {
     const seconds = elapsedTime % 60;
     loggingElement.innerText = `Recording stopped. Total time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
+
 // takes JSON data from DB and assigns it to Items
 function assignJsonToItems(jsonData, neededSequences) {
     logWithStyle('Assigning JSON data to items.', 'info');
