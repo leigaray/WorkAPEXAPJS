@@ -2,8 +2,14 @@
 var recordingStartTime = null;
 var mediaPlayerTimer = null;
 
-function logWithStyle(message, level = 'info') {
+function logWithStyle(message, level = 'info', filterLevel = 'error-trace') {
     let style = 'font-weight: bold;';
+
+    // Apply filtering based on filterLevel
+    if (filterLevel === 'error-trace' && level !== 'error' && level !== 'trace') {
+        return; // Exit if the log level isn't error or trace
+    }
+
     switch (level) {
         case 'info':
             style += 'color: #90ee90';
@@ -21,10 +27,15 @@ function logWithStyle(message, level = 'info') {
             style += 'color: orange';
             console.warn('%c FGVD - ' + message, style);
             break;
+        case 'trace':
+            style += 'color: cyan';
+            console.trace('%c FGVD - ' + message, style);
+            break;
         default:
             console.log('%c FGVD - ' + message, style);
     }
 }
+
 
 function logElementValue(elementId) {
     const element = getElement(elementId);
