@@ -844,31 +844,46 @@ function setupConditionalDisplayById(selectListId, targetId, targetLabelId = nul
     const target = document.getElementById(targetId);
     const targetLabel = targetLabelId ? document.getElementById(targetLabelId) : null;
 
-    // Ensure the element is a select list and target exists
     if (selectList && selectList.tagName === 'SELECT' && target) {
-        // Initial display setting based on the current selection
-        const initialDisplay = selectList.value === showValue ? '' : 'none';
-        target.style.display = initialDisplay;
-        if (targetLabel) targetLabel.style.display = initialDisplay;
+        // Initial display setup based on the current value
+        var selectedValue = selectList.value;
+        logWithStyle("Initial Selected Value is " + selectedValue, 'trace');
 
-        // Log the initial state
-        logWithStyle(`${targetId} is ${initialDisplay === '' ? 'shown' : 'hidden'} (initial).`, 'info');
-        if (targetLabel) {
-            logWithStyle(`${targetLabelId} is ${initialDisplay === '' ? 'shown' : 'hidden'} (initial).`, 'info');
+        if (selectedValue === showValue) {
+            target.style.display = '';
+            console.log(`${targetId} is initially shown.`);
+            if (targetLabel) {
+                targetLabel.style.display = '';
+                console.log(`${targetLabelId} is initially shown.`);
+            }
+        } else {
+            target.style.display = 'none';
+            console.log(`${targetId} is initially hidden.`);
+            if (targetLabel) {
+                targetLabel.style.display = 'none';
+                console.log(`${targetLabelId} is initially hidden.`);
+            }
         }
 
         // Event listener for future changes
         selectList.addEventListener('change', function () {
-            const selectedValue = selectList.value;
-            const displayStyle = selectedValue === showValue ? '' : 'none';
+            var selectedValue = selectList.value;
+            logWithStyle("Selected Value is " + selectedValue, 'trace');
 
-            // Apply display style based on selected value
-            target.style.display = displayStyle;
-            if (targetLabel) targetLabel.style.display = displayStyle;
-
-            logWithStyle(`${targetId} is ${displayStyle === '' ? 'shown' : 'hidden'}.`, 'info');
-            if (targetLabel) {
-                logWithStyle(`${targetLabelId} is ${displayStyle === '' ? 'shown' : 'hidden'}.`, 'info');
+            if (selectedValue === showValue) {
+                target.style.display = '';
+                console.log(`${targetId} is shown.`);
+                if (targetLabel) {
+                    targetLabel.style.display = '';
+                    console.log(`${targetLabelId} is shown.`);
+                }
+            } else {
+                target.style.display = 'none';
+                console.log(`${targetId} is hidden.`);
+                if (targetLabel) {
+                    targetLabel.style.display = 'none';
+                    console.log(`${targetLabelId} is hidden.`);
+                }
             }
         });
     } else {
@@ -878,30 +893,45 @@ function setupConditionalDisplayById(selectListId, targetId, targetLabelId = nul
 
 function setupConditionalDisplayByElement(selectList, target, targetLabel = null, showValue = 'Yes') {
     if (selectList && selectList.tagName === 'SELECT' && target) {
+        // Initial display setup based on the current value
+        var selectedValue = selectList.value;
+        logWithStyle("Initial Selected Value is " + selectedValue, 'trace');
 
-        // Initial check to set display based on the current selection
-        const initialDisplay = selectList.value === showValue ? '' : 'none';
-        target.style.display = initialDisplay;
-        if (targetLabel) targetLabel.style.display = initialDisplay;
-
-        // Log the initial state
-        logWithStyle(`Target element is ${initialDisplay === '' ? 'shown' : 'hidden'} (initial).`, 'info');
-        if (targetLabel) {
-            logWithStyle(`Target label is ${initialDisplay === '' ? 'shown' : 'hidden'} (initial).`, 'info');
+        if (selectedValue === showValue) {
+            target.style.display = '';
+            console.log(`${target.id} is initially shown.`);
+            if (targetLabel) {
+                targetLabel.style.display = '';
+                console.log(`${targetLabel.id} is initially shown.`);
+            }
+        } else {
+            target.style.display = 'none';
+            console.log(`${target.id} is initially hidden.`);
+            if (targetLabel) {
+                targetLabel.style.display = 'none';
+                console.log(`${targetLabel.id} is initially hidden.`);
+            }
         }
 
         // Event listener for future changes
         selectList.addEventListener('change', function () {
-            const selectedValue = selectList.value;
-            const displayStyle = selectedValue === showValue ? '' : 'none';
+            var selectedValue = selectList.value;
+            logWithStyle("Selected Value is " + selectedValue, 'trace');
 
-            // Apply display style based on selected value
-            target.style.display = displayStyle;
-            if (targetLabel) targetLabel.style.display = displayStyle;
-
-            logWithStyle(`Target element is ${displayStyle === '' ? 'shown' : 'hidden'}.`, 'info');
-            if (targetLabel) {
-                logWithStyle(`Target label is ${displayStyle === '' ? 'shown' : 'hidden'}.`, 'info');
+            if (selectedValue === showValue) {
+                target.style.display = '';
+                console.log(`${target.id} is shown.`);
+                if (targetLabel) {
+                    targetLabel.style.display = '';
+                    console.log(`${targetLabel.id} is shown.`);
+                }
+            } else {
+                target.style.display = 'none';
+                console.log(`${target.id} is hidden.`);
+                if (targetLabel) {
+                    targetLabel.style.display = 'none';
+                    console.log(`${targetLabel.id} is hidden.`);
+                }
             }
         });
     } else {
