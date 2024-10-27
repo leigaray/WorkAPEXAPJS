@@ -606,7 +606,7 @@ function fetchPrompts(pageNumber, recordingsNeeded) {
     });
 }
 
-function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, controlSetting = 'start') {
+function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, logElement, controlSetting = 'start') {
     logWithStyle('Handling recording control states...', 'info');
 
     if (!startButton) {
@@ -626,6 +626,10 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         return false;
     }
 
+    if (!logElement) {
+        logWithStyle('Missing parameter: audioPlayer', 'warn');
+    }
+
     if (controlSetting === 'start') {
         startButton.disabled = true;
         saveButton.disabled = true;
@@ -640,6 +644,9 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         logWithStyle('Recording started at ' + new Date(recordingStartTime).toLocaleTimeString(), 'info');
 
         mediaPlayerTimer = setInterval(function () {
+            if (logElement) {
+                startTimer(logElement);
+            }
             let elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
             audioPlayer.innerText = 'Recording... ' + elapsedSeconds + ' sec';
             logWithStyle('Media player updated: ' + elapsedSeconds + ' sec elapsed', 'info');
@@ -655,6 +662,10 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         saveButton.style.backgroundColor = '';
         audioPlayer.disabled = false;
         startButton.classList.remove('flashing');
+
+        if (logElement) {
+            stopTimer(logElement);
+        }
 
         logWithStyle('Stop button disabled,  flashing stopped.', 'info');
 
