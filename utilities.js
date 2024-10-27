@@ -40,7 +40,6 @@ function logElementValue(elementId) {
     }
 }
 
-// Start the timer and update the loggingElement
 function startTimer(loggingElement) {
     const startTime = Date.now();
     timerInterval = setInterval(() => {
@@ -51,10 +50,10 @@ function startTimer(loggingElement) {
 
         loggingElement.innerText = `Recording... Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
     }, 100); // Update every 100 milliseconds
+    return startTime;
 }
 
-// Stop the timer and log the final time
-function stopTimer(loggingElement) {
+function stopTimer(loggingElement, startTime) {
     if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -66,6 +65,159 @@ function stopTimer(loggingElement) {
 
     loggingElement.innerText = `Recording stopped. Total time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
 }
+
+// Modified to use parameters as discussed
+function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, controlSetting = 'start', startTime = 0.0) {
+    logWithStyle('Handling recording control states...', 'info');
+
+    if (!startButton) {
+        logWithStyle('Missing required element: startButton', 'error');
+        return false;
+    }
+    if (!stopButton) {
+        logWithStyle('Missing required element: stopButton', 'error');
+        return false;
+    }
+    if (!saveButton) {
+        logWithStyle('Missing required element: saveButton', 'error');
+        return false;
+    }
+    if (!audioPlayer) {
+        logWithStyle('Missing required element: audioPlayer', 'error');
+        return false;
+    }
+    if (!loggingElement) {
+        logWithStyle('Missing required element: loggingElement', 'warn');
+    }
+
+    if (controlSetting === 'start') {
+        startButton.disabled = true;
+        saveButton.disabled = true;
+        stopButton.disabled = false;
+        stopButton.style.backgroundColor = '';
+        audioPlayer.disabled = true;
+        startButton.classList.add('flashing');
+
+        logWithStyle('Start button disabled, stop button enabled, flashing started.', 'info');
+
+        // Start the timer for logging elapsed time if loggingElement is provided
+        startTime = startTimer(loggingElement);
+
+        // Enable stop button after 3 seconds for user experience
+        setTimeout(function () {
+            stopButton.disabled = false;
+            logWithStyle('Stop button enabled after 3 seconds.', 'info');
+        }, 3000);
+
+        return startTime;
+    } else if (controlSetting === 'stop') {
+        stopButton.disabled = true;
+        saveButton.disabled = false;
+        saveButton.style.backgroundColor = '';
+        audioPlayer.disabled = false;
+        startButton.classList.remove('flashing');
+
+        if (loggingElement) {
+            stopTimer(loggingElement, startTime);
+        }
+
+        logWithStyle('Stop button disabled, flashing stopped.', 'info');
+
+        setTimeout(function () {
+            startButton.disabled = false;
+            logWithStyle('Start button enabled after 2 seconds.', 'info');
+        }, 2000);
+
+        setTimeout(function () {
+            saveButton.disabled = false;
+            logWithStyle('Save button enabled after 2 seconds.', 'info');
+        }, 2000);
+
+    } else if (controlSetting === 'submit' || controlSetting === 'save') {
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        saveButton.disabled = true;
+        audioPlayer.disabled = true;
+
+        logWithStyle('All buttons disabled, recording process complete.', 'info');
+
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            logWithStyle('Timer interval cleared on submission.', 'info');
+        }
+    } else {
+        logWithStyle('Invalid control setting: ' + controlSetting, 'error');
+        return false;
+    }
+
+    return true;
+}
+
+
+// Main function to handle recording
+function handleRecording(sessionCount, startButton, stopButton, saveButton, audioPlayer, loggingElement) {
+    let audioChunks = [];
+    let timerInfo = null; // Store timer information
+
+    startButton.addEventListener('click', async function () {
+        logWithStyle('Start button clicked for session ' + sessionCount, 'info');
+        handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'start');
+
+        // Start the timer
+        timerInfo = startTimer(loggingElement);
+
+        try {
+            const result = await initAudioWorklet(44100, 1, '#APP_IMAGES#audio-processor.js');
+            if (result) {
+                audioContext = result.audioContext;
+                processorNode = result.processorNode;
+                stream = result.stream;
+                audioDataChunks = result.audioDataChunks;
+            } else {
+                logWithStyle('Failed to initialize AudioWorkletNode. Fallback required.', 'error');
+            }
+        } catch (error) {
+            logWithStyle('Error starting recording: ' + error.message, 'error');
+        }
+    });
+
+    stopButton.addEventListener('click', function () {
+        logWithStyle('Stop button clicked for session ' + sessionCount, 'info');
+        handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop');
+
+        // Stop the timer
+        if (timerInfo) stopTimer(loggingElement, timerInfo.startTime, timerInfo.interval);
+
+        if (stream) {
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            logWithStyle('Audio stream stopped.', 'info');
+        }
+
+        const wavBlob = audioToWav(audioDataChunks, audioContext.sampleRate);
+        const audioUrl = URL.createObjectURL(wavBlob);
+        audioPlayer.src = audioUrl;
+        audioPlayer.load();
+        logWithStyle('Audio loaded into player.', 'info');
+
+        audioBlobToBase64(wavBlob, function (base64Audio) {
+            logWithStyle('Audio data converted to Base64 for processing.', 'info');
+
+            const maxChunkSize = 30000;
+            audioChunks = splitBase64AudioData(base64Audio, maxChunkSize);
+            if (audioChunks.length === 0) {
+                logWithStyle('No audio data available after splitting. Please record again.', 'error');
+                alert('Recording failed. Please try again.');
+                return;
+            }
+
+            const itemsAssigned = assignAudioChunksToHolders(audioChunks, pagePrefix, 1);
+            logWithStyle(`Audio data assigned to ${itemsAssigned} page items.`, 'info');
+        });
+    });
+}
+
 
 async function initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile) {
     try {
@@ -622,93 +774,6 @@ function fetchPrompts(pageNumber, recordingsNeeded) {
     });
 }
 
-function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, controlSetting = 'start') {
-    logWithStyle('Handling recording control states...', 'info');
-
-    // Individual parameter checks with specific logs for each missing parameter
-    if (!startButton) {
-        logWithStyle('Missing required element: startButton', 'error');
-        return false;
-    }
-    if (!stopButton) {
-        logWithStyle('Missing required element: stopButton', 'error');
-        return false;
-    }
-    if (!saveButton) {
-        logWithStyle('Missing required element: saveButton', 'error');
-        return false;
-    }
-    if (!audioPlayer) {
-        logWithStyle('Missing required element: audioPlayer', 'error');
-        return false;
-    }
-    if (!loggingElement) {
-        logWithStyle('Missing required element: loggingElement', 'warn');
-    } else {
-        startTimer(loggingElement);
-    }
-
-    if (controlSetting === 'start') {
-        startButton.disabled = true;
-        saveButton.disabled = true;
-        stopButton.disabled = false;
-        stopButton.style.backgroundColor = '';
-        audioPlayer.disabled = true;
-        startButton.classList.add('flashing');
-
-        logWithStyle('Start button disabled, stop button enabled, flashing started.', 'info');
-
-        // Enable stop button after 3 seconds
-        setTimeout(function () {
-            stopButton.disabled = false;
-            logWithStyle('Stop button enabled after 3 seconds.', 'info');
-        }, 3000);
-
-    } else if (controlSetting === 'stop') {
-        stopButton.disabled = true;
-        saveButton.disabled = false;
-        saveButton.style.backgroundColor = '';
-        audioPlayer.disabled = false;
-        startButton.classList.remove('flashing');
-
-        // Stop timer if loggingElement is provided
-        if (loggingElement) {
-            stopTimer(loggingElement);
-        }
-
-        logWithStyle('Stop button disabled, flashing stopped.', 'info');
-
-        // Enable start and save buttons after 2 seconds
-        setTimeout(function () {
-            startButton.disabled = false;
-            logWithStyle('Start button enabled after 2 seconds.', 'info');
-        }, 2000);
-
-        setTimeout(function () {
-            saveButton.disabled = false;
-            logWithStyle('Save button enabled after 2 seconds.', 'info');
-        }, 2000);
-
-    } else if (controlSetting === 'submit' || controlSetting === 'save') {
-        startButton.disabled = false;
-        stopButton.disabled = true;
-        saveButton.disabled = true;
-        audioPlayer.disabled = true;
-
-        logWithStyle('All buttons disabled, recording process complete.', 'info');
-
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            logWithStyle('Timer interval cleared on submission.', 'info');
-        }
-    } else {
-        logWithStyle('Invalid control setting: ' + controlSetting, 'error');
-        return false;
-    }
-
-    return true;
-}
 
 function writeToLogElement(logElement, message = "") {
 
