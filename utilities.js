@@ -2,6 +2,22 @@
 var recordingStartTime = null;
 var mediaPlayerTimer = null;
 
+// Retrieves the element with jQuery based on the page prefix and item name
+function getElementById(pagePrefix, itemName) {
+    return $('#' + pagePrefix + itemName);
+}
+
+// Retrieves the value of an element (APEX shorthand syntax for $v is retained)
+function getElementValue(pagePrefix, itemName) {
+    return $v(pagePrefix + itemName);
+}
+
+// Builds a full ID string based on prefix and item name (useful for reusable IDs)
+function buildElementId(pagePrefix, itemName) {
+    return pagePrefix + itemName;
+}
+
+
 function logWithStyle(message, level = 'info', filterLevel = 'error-trace') {
     let style = 'font-weight: bold;';
 
