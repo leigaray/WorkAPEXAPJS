@@ -51,10 +51,11 @@ function startTimer(loggingElement) {
 
         loggingElement.innerText = `Recording... Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
     }, 100); // Update every 100 milliseconds
+    return startTime;
 }
 
 // Stop the timer and log the final time
-function stopTimer(loggingElement) {
+function stopTimer(loggingElement, startTime) {
     if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -622,7 +623,7 @@ function fetchPrompts(pageNumber, recordingsNeeded) {
     });
 }
 
-function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, controlSetting = 'start') {
+function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, controlSetting = 'start', startTime=0.0) {
     logWithStyle('Handling recording control states...', 'info');
 
     // Individual parameter checks with specific logs for each missing parameter
@@ -645,7 +646,7 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
     if (!loggingElement) {
         logWithStyle('Missing required element: loggingElement', 'warn');
     } else {
-        startTimer(loggingElement);
+        startTime = startTimer(loggingElement);
     }
 
     if (controlSetting === 'start') {
@@ -664,6 +665,7 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
             logWithStyle('Stop button enabled after 3 seconds.', 'info');
         }, 3000);
 
+        return startTime;
     } else if (controlSetting === 'stop') {
         stopButton.disabled = true;
         saveButton.disabled = false;
@@ -673,7 +675,7 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
 
         // Stop timer if loggingElement is provided
         if (loggingElement) {
-            stopTimer(loggingElement);
+            stopTimer(loggingElement, startTime);
         }
 
         logWithStyle('Stop button disabled, flashing stopped.', 'info');
