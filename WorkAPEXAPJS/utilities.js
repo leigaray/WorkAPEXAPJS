@@ -26,6 +26,20 @@ function logWithStyle(message, level = 'info') {
     }
 }
 
+function logElementValue(elementId) {
+    const element = getElement(elementId);
+    if (element) {
+        const value = element.val();
+        if (value === undefined || value === null || value === '') {
+            logWithStyle(elementId + ': NONE', 'warn');
+        } else {
+            logWithStyle(elementId + ': ' + value);
+        }
+    } else {
+        logWithStyle(elementId + ' not found.', 'warn');
+    }
+}
+
 // Start the timer and update the loggingElement
 function startTimer(loggingElement) {
     const startTime = Date.now();
@@ -630,7 +644,7 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
     }
     if (!loggingElement) {
         logWithStyle('Missing required element: loggingElement', 'warn');
-    } else{
+    } else {
         startTimer(loggingElement);
     }
 
