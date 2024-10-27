@@ -170,8 +170,8 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         if (loggingElement) {
             loggingElement.style.display = 'block';
             loggingElement.innerText = "Saving your audio...";
+            loggingElement.classList.add('flashing'); // Apply the flashing effect
         }
-
 
         logWithStyle('All buttons disabled, recording process complete.', 'info');
 
@@ -179,6 +179,10 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
             clearInterval(mediaPlayerTimer);
             logWithStyle('Media player timer cleared on submission.', 'info');
         }
+
+        setTimeout(() => {
+            if (loggingElement) loggingElement.classList.remove('flashing');
+        }, 8000);
     } else {
         logWithStyle('Invalid control setting: ' + controlSetting, 'error');
         return false;
