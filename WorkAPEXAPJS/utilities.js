@@ -40,23 +40,24 @@ function logElementValue(elementId) {
     }
 }
 
-// Starts the timer
 function startTimer(loggingElement) {
     const startTime = Date.now();
-    const interval = setInterval(() => {
+    timerInterval = setInterval(() => {
         const elapsedTime = Date.now() - startTime;
         const minutes = Math.floor(elapsedTime / 60000);
         const seconds = Math.floor((elapsedTime % 60000) / 1000);
-        const milliseconds = Math.floor((elapsedTime % 1000) / 10);
+        const milliseconds = Math.floor((elapsedTime % 1000) / 10); // Get centiseconds for smoother display
 
         loggingElement.innerText = `Recording... Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
     }, 100); // Update every 100 milliseconds
-    return {startTime, interval};
+    return startTime;
 }
 
-// Stops the timer and logs the final time
-function stopTimer(loggingElement, startTime, interval) {
-    clearInterval(interval); // Clear the timer
+function stopTimer(loggingElement, startTime) {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
     const elapsedTime = Date.now() - startTime;
     const minutes = Math.floor(elapsedTime / 60000);
     const seconds = Math.floor((elapsedTime % 60000) / 1000);
@@ -65,42 +66,71 @@ function stopTimer(loggingElement, startTime, interval) {
     loggingElement.innerText = `Recording stopped. Total time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
 }
 
-// Main control state handler function
-function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, controlSetting = 'start') {
+// Modified to use parameters as discussed
+function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, controlSetting = 'start', startTime = 0.0) {
     logWithStyle('Handling recording control states...', 'info');
 
-    if (!startButton || !stopButton || !saveButton || !audioPlayer || !loggingElement) {
-        logWithStyle('Missing required elements for control state handling.', 'error');
+    if (!startButton) {
+        logWithStyle('Missing required element: startButton', 'error');
         return false;
+    }
+    if (!stopButton) {
+        logWithStyle('Missing required element: stopButton', 'error');
+        return false;
+    }
+    if (!saveButton) {
+        logWithStyle('Missing required element: saveButton', 'error');
+        return false;
+    }
+    if (!audioPlayer) {
+        logWithStyle('Missing required element: audioPlayer', 'error');
+        return false;
+    }
+    if (!loggingElement) {
+        logWithStyle('Missing required element: loggingElement', 'warn');
     }
 
     if (controlSetting === 'start') {
         startButton.disabled = true;
         saveButton.disabled = true;
         stopButton.disabled = false;
+        stopButton.style.backgroundColor = '';
         audioPlayer.disabled = true;
         startButton.classList.add('flashing');
 
         logWithStyle('Start button disabled, stop button enabled, flashing started.', 'info');
 
-        // Enable stop button after 3 seconds
-        setTimeout(() => {
+        // Start the timer for logging elapsed time if loggingElement is provided
+        startTime = startTimer(loggingElement);
+
+        // Enable stop button after 3 seconds for user experience
+        setTimeout(function () {
             stopButton.disabled = false;
             logWithStyle('Stop button enabled after 3 seconds.', 'info');
         }, 3000);
 
+        return startTime;
     } else if (controlSetting === 'stop') {
         stopButton.disabled = true;
         saveButton.disabled = false;
+        saveButton.style.backgroundColor = '';
         audioPlayer.disabled = false;
         startButton.classList.remove('flashing');
 
+        if (loggingElement) {
+            stopTimer(loggingElement, startTime);
+        }
+
         logWithStyle('Stop button disabled, flashing stopped.', 'info');
 
-        setTimeout(() => {
+        setTimeout(function () {
             startButton.disabled = false;
+            logWithStyle('Start button enabled after 2 seconds.', 'info');
+        }, 2000);
+
+        setTimeout(function () {
             saveButton.disabled = false;
-            logWithStyle('Start and Save buttons enabled after 2 seconds.', 'info');
+            logWithStyle('Save button enabled after 2 seconds.', 'info');
         }, 2000);
 
     } else if (controlSetting === 'submit' || controlSetting === 'save') {
@@ -108,7 +138,14 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         stopButton.disabled = true;
         saveButton.disabled = true;
         audioPlayer.disabled = true;
+
         logWithStyle('All buttons disabled, recording process complete.', 'info');
+
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            logWithStyle('Timer interval cleared on submission.', 'info');
+        }
     } else {
         logWithStyle('Invalid control setting: ' + controlSetting, 'error');
         return false;
@@ -116,6 +153,7 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
 
     return true;
 }
+
 
 // Main function to handle recording
 function handleRecording(sessionCount, startButton, stopButton, saveButton, audioPlayer, loggingElement) {
