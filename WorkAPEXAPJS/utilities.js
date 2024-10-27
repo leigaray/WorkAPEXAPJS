@@ -596,7 +596,7 @@ function fetchPrompts(pageNumber, recordingsNeeded) {
             // Set the audio box dynamically
             //let currentAudioBoxItem = 'P' + pageNumber + '_CURRENT_AUDIO_BOX';
             //$s(currentAudioBoxItem, minTrxId);  // Set the value in APEX
-            //logWithStyle(currentAudioBoxItem + " set to: " + minTrxId);  // Log the change
+            //logWithStyle(currentAudioBoxItem + " set to: " + minTrxId);  // I commented this at 2024-10-26|21:01
 
             // Call the assignJsonToItems function, pass parsedData.prompts and recordingsNeeded
             assignJsonToItems(parsedData.prompts, recordingsNeeded);
