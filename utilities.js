@@ -134,15 +134,6 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
     return true;
 }
 
-// Example of usage
-startButton.addEventListener('click', function () {
-    const timerData = handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'start');
-});
-
-stopButton.addEventListener('click', function () {
-    handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop', timerData);
-});
-
 
 async function initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile) {
     try {
