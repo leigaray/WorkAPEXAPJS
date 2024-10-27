@@ -26,30 +26,28 @@ function logWithStyle(message, level = 'info') {
     }
 }
 
-// Start the timer and update the loggingElement
+// start the timer and update every 100 milliseconds for milliseconds precision
 function startTimer(loggingElement) {
-    const startTime = Date.now();
+    startTime = Date.now();
     timerInterval = setInterval(() => {
         const elapsedTime = Date.now() - startTime;
         const minutes = Math.floor(elapsedTime / 60000);
         const seconds = Math.floor((elapsedTime % 60000) / 1000);
         const milliseconds = Math.floor((elapsedTime % 1000) / 10); // Get centiseconds for smoother display
 
+        // Update the logging element with formatted time (MM:SS:MS)
         loggingElement.innerText = `Recording... Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
-    }, 100); // Update every 100 milliseconds
+    }, 100); // Update every 100 milliseconds (10 times per second)
 }
 
-// Stop the timer and log the final time
+// stops timer and show final time including milliseconds
 function stopTimer(loggingElement) {
-    if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-    }
+    clearInterval(timerInterval);
+    timerInterval = null;
     const elapsedTime = Date.now() - startTime;
     const minutes = Math.floor(elapsedTime / 60000);
     const seconds = Math.floor((elapsedTime % 60000) / 1000);
     const milliseconds = Math.floor((elapsedTime % 1000) / 10);
-
     loggingElement.innerText = `Recording stopped. Total time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
 }
 
@@ -608,47 +606,78 @@ function fetchPrompts(pageNumber, recordingsNeeded) {
     });
 }
 
-function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, controlSetting = 'start') {
+function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, logElement, controlSetting = 'start') {
     logWithStyle('Handling recording control states...', 'info');
 
-    if (!startButton || !stopButton || !saveButton || !audioPlayer || !loggingElement) {
-        logWithStyle('Missing required elements for control state handling.', 'error');
+    if (!startButton) {
+        logWithStyle('Missing parameter: startButton', 'error');
+        return false;
+    }
+    if (!stopButton) {
+        logWithStyle('Missing parameter: stopButton', 'error');
+        return false;
+    }
+    if (!saveButton) {
+        logWithStyle('Missing parameter: saveButton', 'error');
+        return false;
+    }
+    if (!audioPlayer) {
+        logWithStyle('Missing parameter: audioPlayer', 'error');
         return false;
     }
 
-    // Track recording status to prevent double clicks
-    let isRecording = false;
+    if (!logElement) {
+        logWithStyle('Missing parameter: audioPlayer', 'warn');
+    }
 
     if (controlSetting === 'start') {
         startButton.disabled = true;
         saveButton.disabled = true;
-        stopButton.disabled = false;
         stopButton.style.backgroundColor = '';
         audioPlayer.disabled = true;
+        audioPlayer.style.opacity = '1';
         startButton.classList.add('flashing');
 
         logWithStyle('Start button disabled, stop button enabled, flashing started.', 'info');
 
-        // Start timer for logging elapsed time
-        startTimer(loggingElement);
-        isRecording = true;
+        recordingStartTime = Date.now();
+        logWithStyle('Recording started at ' + new Date(recordingStartTime).toLocaleTimeString(), 'info');
+
+        mediaPlayerTimer = setInterval(function () {
+            if (logElement) {
+                startTimer(logElement);
+            }
+            let elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
+            audioPlayer.innerText = 'Recording... ' + elapsedSeconds + ' sec';
+            logWithStyle('Media player updated: ' + elapsedSeconds + ' sec elapsed', 'info');
+        }, 1000);
 
         setTimeout(function () {
             stopButton.disabled = false;
             logWithStyle('Stop button enabled after 3 seconds.', 'info');
         }, 3000);
 
-    } else if (controlSetting === 'stop' && isRecording) {
+    } else if (controlSetting === 'stop') {
         stopButton.disabled = true;
-        saveButton.disabled = false;
         saveButton.style.backgroundColor = '';
         audioPlayer.disabled = false;
         startButton.classList.remove('flashing');
 
-        // Stop the timer and log the elapsed time
-        stopTimer(loggingElement);
+        if (logElement) {
+            stopTimer(logElement);
+        }
 
-        logWithStyle('Stop button disabled, flashing stopped.', 'info');
+        logWithStyle('Stop button disabled,  flashing stopped.', 'info');
+
+        if (recordingStartTime) {
+            let elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
+            logWithStyle('Recording stopped after ' + elapsedSeconds + ' seconds.', 'info');
+        }
+
+        if (mediaPlayerTimer) {
+            clearInterval(mediaPlayerTimer);
+            logWithStyle('Media player timer cleared.', 'info');
+        }
 
         setTimeout(function () {
             startButton.disabled = false;
@@ -657,23 +686,21 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
 
         setTimeout(function () {
             saveButton.disabled = false;
+            saveButton.style.backgroundColor = '';
             logWithStyle('Save button enabled after 3 seconds.', 'info');
         }, 2000);
 
-        isRecording = false;
-
     } else if (controlSetting === 'submit' || controlSetting === 'save') {
-        startButton.disabled = false;
+        startButton.disabled = false; // **Fix: Start button re-enabled after Save**
         stopButton.disabled = true;
         saveButton.disabled = true;
         audioPlayer.disabled = true;
 
         logWithStyle('All buttons disabled, recording process complete.', 'info');
 
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            logWithStyle('Timer interval cleared on submission.', 'info');
+        if (mediaPlayerTimer) {
+            clearInterval(mediaPlayerTimer);
+            logWithStyle('Media player timer cleared on submission.', 'info');
         }
     } else {
         logWithStyle('Invalid control setting: ' + controlSetting, 'error');
