@@ -167,6 +167,12 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         saveButton.disabled = true;
         audioPlayer.disabled = true;
 
+        if (loggingElement) {
+            loggingElement.style.display = 'block';
+            loggingElement.innerText = "Saving your audio...";
+        }
+
+
         logWithStyle('All buttons disabled, recording process complete.', 'info');
 
         if (mediaPlayerTimer) {
