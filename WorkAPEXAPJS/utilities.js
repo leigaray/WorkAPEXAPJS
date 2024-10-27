@@ -52,7 +52,6 @@ function stopTimer(loggingElement) {
 
     loggingElement.innerText = `Recording stopped. Total time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`;
 }
-
 async function initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile) {
     try {
         let audioContext = new (window.AudioContext || window.webkitAudioContext)({sampleRate});
