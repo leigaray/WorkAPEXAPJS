@@ -140,6 +140,11 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         audioPlayer.disabled = false;
         startButton.classList.remove('flashing');
 
+        if (loggingElement) {
+            loggingElement.style.display = 'block';
+            loggingElement.innerText = "Saving your audio...";
+        }
+
         // Stop the timer if loggingElement is provided
         if (timerData) {
             stopTimer(loggingElement, timerData.startTime, timerData.intervalId);
@@ -156,6 +161,21 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
             saveButton.disabled = false;
             logWithStyle('Save button enabled after 2 seconds.', 'info');
         }, 2000);
+    } else if (controlSetting === 'submit' || controlSetting === 'save') {
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        saveButton.disabled = true;
+        audioPlayer.disabled = true;
+
+        logWithStyle('All buttons disabled, recording process complete.', 'info');
+
+        if (mediaPlayerTimer) {
+            clearInterval(mediaPlayerTimer);
+            logWithStyle('Media player timer cleared on submission.', 'info');
+        }
+    } else {
+        logWithStyle('Invalid control setting: ' + controlSetting, 'error');
+        return false;
     }
 
     return true;
