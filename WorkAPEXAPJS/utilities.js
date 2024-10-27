@@ -838,7 +838,7 @@ function updateMediaPlayerTimer(mediaPlayer, isRecording, mediaPlayerTimer, reco
 
     return {mediaPlayerTimer, recordingStartTime};  // Return the updated values
 }
-// Generic function that takes element IDs
+
 function setupConditionalDisplayById(selectListId, targetId, targetLabelId = null, showValue = 'Yes') {
     const selectList = document.getElementById(selectListId);
     const target = document.getElementById(targetId);
@@ -846,6 +846,18 @@ function setupConditionalDisplayById(selectListId, targetId, targetLabelId = nul
 
     // Ensure the element is a select list and target exists
     if (selectList && selectList.tagName === 'SELECT' && target) {
+        // Initial display setting based on the current selection
+        const initialDisplay = selectList.value === showValue ? '' : 'none';
+        target.style.display = initialDisplay;
+        if (targetLabel) targetLabel.style.display = initialDisplay;
+
+        // Log the initial state
+        logWithStyle(`${targetId} is ${initialDisplay === '' ? 'shown' : 'hidden'} (initial).`, 'info');
+        if (targetLabel) {
+            logWithStyle(`${targetLabelId} is ${initialDisplay === '' ? 'shown' : 'hidden'} (initial).`, 'info');
+        }
+
+        // Event listener for future changes
         selectList.addEventListener('change', function () {
             const selectedValue = selectList.value;
             const displayStyle = selectedValue === showValue ? '' : 'none';
@@ -864,9 +876,21 @@ function setupConditionalDisplayById(selectListId, targetId, targetLabelId = nul
     }
 }
 
-// Generic function that takes the actual elements
 function setupConditionalDisplayByElement(selectList, target, targetLabel = null, showValue = 'Yes') {
     if (selectList && selectList.tagName === 'SELECT' && target) {
+
+        // Initial check to set display based on the current selection
+        const initialDisplay = selectList.value === showValue ? '' : 'none';
+        target.style.display = initialDisplay;
+        if (targetLabel) targetLabel.style.display = initialDisplay;
+
+        // Log the initial state
+        logWithStyle(`Target element is ${initialDisplay === '' ? 'shown' : 'hidden'} (initial).`, 'info');
+        if (targetLabel) {
+            logWithStyle(`Target label is ${initialDisplay === '' ? 'shown' : 'hidden'} (initial).`, 'info');
+        }
+
+        // Event listener for future changes
         selectList.addEventListener('change', function () {
             const selectedValue = selectList.value;
             const displayStyle = selectedValue === showValue ? '' : 'none';
@@ -885,6 +909,7 @@ function setupConditionalDisplayByElement(selectList, target, targetLabel = null
     }
 }
 
+
 // Generic function that takes IDs
 function setupExclusiveCheckboxById(checkboxGroupName, pivotalCheckboxId, pivotalValue) {
     const pivotalCheckbox = $(`input:checkbox[id="${pivotalCheckboxId}"][value="${pivotalValue}"]`);
@@ -892,14 +917,14 @@ function setupExclusiveCheckboxById(checkboxGroupName, pivotalCheckboxId, pivota
 
     if (pivotalCheckbox.length && otherCheckboxes.length) {
         // Uncheck others when the pivotal checkbox is selected
-        pivotalCheckbox.change(function() {
+        pivotalCheckbox.change(function () {
             if (this.checked) {
                 otherCheckboxes.prop('checked', false);
             }
         });
 
         // Uncheck the pivotal checkbox when any other is selected
-        otherCheckboxes.change(function() {
+        otherCheckboxes.change(function () {
             if (this.checked) {
                 pivotalCheckbox.prop('checked', false);
             }
@@ -913,14 +938,14 @@ function setupExclusiveCheckboxById(checkboxGroupName, pivotalCheckboxId, pivota
 function setupExclusiveCheckboxByElement(pivotalCheckbox, otherCheckboxes) {
     if (pivotalCheckbox && otherCheckboxes.length) {
         // Uncheck others when the pivotal checkbox is selected
-        $(pivotalCheckbox).change(function() {
+        $(pivotalCheckbox).change(function () {
             if (this.checked) {
                 $(otherCheckboxes).prop('checked', false);
             }
         });
 
         // Uncheck the pivotal checkbox when any other is selected
-        $(otherCheckboxes).change(function() {
+        $(otherCheckboxes).change(function () {
             if (this.checked) {
                 $(pivotalCheckbox).prop('checked', false);
             }
