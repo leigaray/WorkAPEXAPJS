@@ -630,6 +630,8 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
     }
     if (!loggingElement) {
         logWithStyle('Missing required element: loggingElement', 'warn');
+    } else{
+        startTimer(loggingElement);
     }
 
     if (controlSetting === 'start') {
@@ -641,11 +643,6 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         startButton.classList.add('flashing');
 
         logWithStyle('Start button disabled, stop button enabled, flashing started.', 'info');
-
-        // Start timer for logging elapsed time if loggingElement is provided
-        if (loggingElement) {
-            startTimer(loggingElement);
-        }
 
         // Enable stop button after 3 seconds
         setTimeout(function () {
