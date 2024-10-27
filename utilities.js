@@ -838,14 +838,94 @@ function updateMediaPlayerTimer(mediaPlayer, isRecording, mediaPlayerTimer, reco
 
     return {mediaPlayerTimer, recordingStartTime};  // Return the updated values
 }
+// Generic function that takes element IDs
+function setupConditionalDisplayById(selectListId, targetId, targetLabelId = null, showValue = 'Yes') {
+    const selectList = document.getElementById(selectListId);
+    const target = document.getElementById(targetId);
+    const targetLabel = targetLabelId ? document.getElementById(targetLabelId) : null;
 
-function hi_from_utilities() {
-    return 'Hi from Utilities';
+    // Ensure the element is a select list and target exists
+    if (selectList && selectList.tagName === 'SELECT' && target) {
+        selectList.addEventListener('change', function () {
+            const selectedValue = selectList.value;
+            const displayStyle = selectedValue === showValue ? '' : 'none';
+
+            // Apply display style based on selected value
+            target.style.display = displayStyle;
+            if (targetLabel) targetLabel.style.display = displayStyle;
+
+            logWithStyle(`${targetId} is ${displayStyle === '' ? 'shown' : 'hidden'}.`, 'info');
+            if (targetLabel) {
+                logWithStyle(`${targetLabelId} is ${displayStyle === '' ? 'shown' : 'hidden'}.`, 'info');
+            }
+        });
+    } else {
+        logWithStyle(`Could not find select list or target elements for IDs: ${selectListId}, ${targetId}`, 'warn');
+    }
 }
 
-function callingAll() {
-    writeToLogElement();
-    hi_from_utilities();
-    updateMediaPlayerTimer();
-    stopMediaPlayerTimer();
+// Generic function that takes the actual elements
+function setupConditionalDisplayByElement(selectList, target, targetLabel = null, showValue = 'Yes') {
+    if (selectList && selectList.tagName === 'SELECT' && target) {
+        selectList.addEventListener('change', function () {
+            const selectedValue = selectList.value;
+            const displayStyle = selectedValue === showValue ? '' : 'none';
+
+            // Apply display style based on selected value
+            target.style.display = displayStyle;
+            if (targetLabel) targetLabel.style.display = displayStyle;
+
+            logWithStyle(`Target element is ${displayStyle === '' ? 'shown' : 'hidden'}.`, 'info');
+            if (targetLabel) {
+                logWithStyle(`Target label is ${displayStyle === '' ? 'shown' : 'hidden'}.`, 'info');
+            }
+        });
+    } else {
+        logWithStyle('Could not find select list or target elements.', 'warn');
+    }
+}
+
+// Generic function that takes IDs
+function setupExclusiveCheckboxById(checkboxGroupName, pivotalCheckboxId, pivotalValue) {
+    const pivotalCheckbox = $(`input:checkbox[id="${pivotalCheckboxId}"][value="${pivotalValue}"]`);
+    const otherCheckboxes = $(`input:checkbox[name="${checkboxGroupName}"]`).not(pivotalCheckbox);
+
+    if (pivotalCheckbox.length && otherCheckboxes.length) {
+        // Uncheck others when the pivotal checkbox is selected
+        pivotalCheckbox.change(function() {
+            if (this.checked) {
+                otherCheckboxes.prop('checked', false);
+            }
+        });
+
+        // Uncheck the pivotal checkbox when any other is selected
+        otherCheckboxes.change(function() {
+            if (this.checked) {
+                pivotalCheckbox.prop('checked', false);
+            }
+        });
+    } else {
+        console.warn('Pivotal or other checkboxes not found with provided IDs or name.');
+    }
+}
+
+// Generic function that takes elements directly
+function setupExclusiveCheckboxByElement(pivotalCheckbox, otherCheckboxes) {
+    if (pivotalCheckbox && otherCheckboxes.length) {
+        // Uncheck others when the pivotal checkbox is selected
+        $(pivotalCheckbox).change(function() {
+            if (this.checked) {
+                $(otherCheckboxes).prop('checked', false);
+            }
+        });
+
+        // Uncheck the pivotal checkbox when any other is selected
+        $(otherCheckboxes).change(function() {
+            if (this.checked) {
+                $(pivotalCheckbox).prop('checked', false);
+            }
+        });
+    } else {
+        console.warn('Pivotal checkbox or other checkboxes not provided correctly.');
+    }
 }
