@@ -1,256 +1,335 @@
-const sampleRate = 44100; // CD-quality audio
-const channelCount = 1; // Mono channel
-let mediaRecorder = null; // Initialize mediaRecorder
+// Configuration Constants
+const sampleRate = 44100;           // CD-quality audio
+const channelCount = 1;             // Mono channel
 const constraints = { audio: true }; // For audio-only media recording
-const recordingsNeeded = 5;
-const audioHoldersCapacity = 350;
+const recordingsNeeded = 5;         // Total recordings required
+const audioProcessorJSFile = '#APP_IMAGES#audio-processor.js'; // Path to audio processor script
+
+// Page and User Information
 const pageNumber = $v('pFlowStepId');
 const pagePrefix = 'P' + pageNumber + '_';
-const audioProcessorJSFile = '#APP_IMAGES#audio-processor.js';
 
-let userTracker = $v(pagePrefix + 'USER_TRACKER');
-let audioContext = null;
-let stream = null;
-let debug = false;
+// Audio and Recording Variables
+let audioContext = null;  // Audio context for managing audio processing
+let stream = null;        // Stream to capture audio data
+let mediaRecorder = null; // Recorder instance for capturing audio
+const maxChunkSize = 30000;
 
-
-function getAudioHolderId(audioHolderId) { return pagePrefix + 'AUDIO_HOLDER_' + audioHolderId;}
-function getElement(elementId) { return $('#' + elementId); }
-function getValue(elementId) { return $v(elementId); }
-function getPageIdFor(itemName) { return pagePrefix + itemName; }
-
-
-function logElementValue(elementId) {
-    const element = getElement(elementId);
-    if (element) {
-        const value = element.val();
-        if (value === undefined || value === null || value === '') {
-            //logWithStyle(elementId + ': NONE', 'warn');
-        } else {
-            //logWithStyle(elementId + ': ' + value);
-        }
-    } else {
-        //logWithStyle(elementId + ' not found.', 'warn');
-    }
-}
+// Debugging and State Management
+let debug = false;        // Debug mode flag
 
 const itemNames = [ 'CURRENT_AUDIO_BOX', 'SESSION_IDX', 'USER_TRACKER', 'MIN_TRX_ID'];
 
-function sendAudioHolders(startIndex, endIndex) {
-    let fullString = '';
-    let populatedCount = 0;
+async function checkMicrophoneQuality() {
+    try {
+        // List all available audio devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(device => device.kind === 'audioinput');
 
-    // Log the current range of audio holders being processed
-    console.log(`Processing audio holders from ${startIndex} to ${endIndex}`);
-
-    // Loop through the audio holders and concatenate non-empty values
-    for (let i = startIndex; i <= endIndex; i++) {
-        const holderValue = $v('P37_AUDIO_HOLDER_' + i);
-        if (holderValue && holderValue.length > 0) {
-            fullString += holderValue;
-            populatedCount++;
-        }
-    }
-
-    if (populatedCount > 0) {
-        console.log(`Sending data for range ${startIndex}-${endIndex}, length: ${fullString.length}`);
-        console.log(`First 15 chars: ${fullString.substring(0, 15)}, Last 15 chars: ${fullString.slice(-15)}`);
-
-        // Perform the APEX server process call
-        apex.server.process(
-            'SAVE_AUDIO_RECORDING3',  // Replace this with the actual APEX process name
-            {
-                x01: fullString,  // Ensure this matches the server-side parameter name
-                x02: populatedCount
-            },
-            {
-                success: function (data) {
-                    console.log('Chunk saved:', data);
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    console.error('Error saving chunk:', textStatus, errorThrown);
-                },
-                dataType: 'json'
-            }
-        );
-
-    } else {
-        console.log(`No data found in holders for range ${startIndex}-${endIndex}`);
-    }
-}
-
-
-document.addEventListener('DOMContentLoaded', function (event) {
-
-    userTracker = $v(pagePrefix + 'USER_TRACKER');
-
-    if (userTracker) {
-
-        // Fetch prompts
-        fetchPrompts(pageNumber, recordingsNeeded);
-
-        // Proceed with additional setup here, e.g., control states, recording handlers
-        //logWithStyle('DOM fully loaded and parsed', 'info');
-
-        const mainRegion = document.getElementById('main_region');
-        if (!mainRegion) {
-            console.error('Main region not found. Please ensure the element with id="main_region" is present in the HTML.');
+        if (audioInputs.length === 0) {
+            alert("No audio input devices found. Please connect a microphone.");
             return;
         }
 
+        console.log("Available audio input devices:");
+        let highestQualityDevice = null;
+        let highestSampleRate = 0;
+        let selectedDeviceSampleRate = 0;
+
+        for (const device of audioInputs) {
+            console.log(`Checking device: ${device.label} (ID: ${device.deviceId})`);
+
+            // Attempt to access each microphone and get its sample rate
+            const testStream = await navigator.mediaDevices.getUserMedia({
+                audio: { deviceId: device.deviceId }
+            });
+            const testAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const testSource = testAudioContext.createMediaStreamSource(testStream);
+
+            // Get sample rate for the device
+            const sampleRate = testAudioContext.sampleRate;
+            console.log(`Sample rate for ${device.label}: ${sampleRate} Hz`);
+
+            // Determine if this device has the highest sample rate so far
+            if (sampleRate > highestSampleRate) {
+                highestSampleRate = sampleRate;
+                highestQualityDevice = device;
+            }
+
+            // Check if the device is the default selected device (usually the system's default)
+            if (device.deviceId === audioInputs[0].deviceId) {
+                selectedDeviceSampleRate = sampleRate;
+
+                // Check if the default microphone's quality meets the acceptable rate
+                if (sampleRate < 44100) {
+                    alert(`Warning: Your default microphone, "${device.label}", has a sample rate of ${sampleRate} Hz, which is below CD quality. Quality may be affected.`);
+                } else {
+                    console.log(`Default microphone "${device.label}" has an acceptable sample rate of ${sampleRate} Hz.`);
+                }
+            }
+
+            // Cleanup: Stop the audio stream and close the audio context after the check
+            testStream.getTracks().forEach(track => track.stop());
+            testAudioContext.close();
+        }
+
+        // Log and notify if there’s a recommended device with a higher sample rate
+        if (highestQualityDevice && highestSampleRate > selectedDeviceSampleRate) {
+            console.log(`Recommended device for higher quality: ${highestQualityDevice.label} with a sample rate of ${highestSampleRate} Hz.`);
+            alert(`For better quality, consider using "${highestQualityDevice.label}" which has a sample rate of ${highestSampleRate} Hz.`);
+        }
+
+        // Inform user if the default device does not meet criteria, but another device does
+        if (selectedDeviceSampleRate < 44100 && highestSampleRate >= 44100) {
+            alert(`Your default microphone does not meet the quality criteria. Consider using "${highestQualityDevice.label}" which meets the quality standard.`);
+        }
+
+    } catch (error) {
+        alert("Microphone access failed or is not available. Please ensure a working microphone is connected.");
+        console.error("Microphone quality check failed:", error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async function (event) {
+
+
+
+    userTracker = getElementValue(pagePrefix, 'USER_TRACKER');
+
+    if (userTracker) {
+        fetchPrompts(pageNumber, recordingsNeeded); //fetching prompts
+        logWithStyle('DOM fully loaded and parsed', 'trace');
+
+        // Set main_region, startRecorder, stopRecorder, nextSession
+        const mainRegion = document.getElementById('main_region');
         const startRecorder = 1;
         const stopRecorder = recordingsNeeded
-        let nextSession = parseInt($v(pagePrefix +  'SESSION_IDX'), 10);
+        let nextSession = parseInt(getElementValue(pagePrefix, 'SESSION_IDX'), 10);
 
-        // Create regions and items based on
+        if (!mainRegion) {
+            logWithStyle('Main region not found. Please ensure the element with id="main_region" is present in the HTML.', 'error');
+            return;
+        }
+
+        // create regions and control elements
         for (let i = startRecorder; i <= stopRecorder; i++) {
             createRegionAndItems(i, mainRegion, pageNumber, stopRecorder, nextSession);
         }
 
+        // handle each audio recording
+        function handleRecording(sessionCount, startButton, stopButton, saveButton, audioPlayer, loggingElement) {
 
+            // set audioChunks and startTime
+            let audioChunks = []
+            let startTime = 0.0;
 
-        // Function to handle recording states
-        function handleRecording(sessionCount, startButton, stopButton, saveButton, audioPlayer) {
             startButton.addEventListener('click', async function () {
-                //logWithStyle('Start button clicked for session ' + sessionCount, 'info');
-                clearSequencedItems(pagePrefix, 'AUDIO_HOLDER', 1, 350) ;
-                handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, 'start');
+               logWithStyle('Start button clicked for session ' + sessionCount, 'info');
+               startTime = handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'start');
 
                 try {
-                    const result = await initAudioWorklet(44100, 1, '#APP_IMAGES#audio-processor.js');
+                    const result = await initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile);
                     if (result) {
                         audioContext = result.audioContext;
                         processorNode = result.processorNode;
                         stream = result.stream;
                         audioDataChunks = result.audioDataChunks;
                     } else {
-                        //logWithStyle('Failed to initialize AudioWorkletNode. Fallback required.', 'error');
+                        logWithStyle('Failed to initialize AudioWorkletNode. Fallback required.', 'error');
                     }
                 } catch (error) {
-                    //logWithStyle('Error starting recording: ' + error.message, 'error');
+                    logWithStyle('Error starting recording: ' + error.message, 'error');
                 }
             });
 
             stopButton.addEventListener('click', function () {
-                //logWithStyle('Stop button clicked for session ' + sessionCount, 'info');
+                logWithStyle('Stop button clicked for session ' + sessionCount, 'info');
+                handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop', startTime);
 
-                // Update recording control states
-                handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, 'stop');
-
-                // Stop the audio stream
+                // If there's an active audio stream, stop each track in the stream to halt audio capture
                 if (stream) {
                     const tracks = stream.getTracks();
                     tracks.forEach(track => track.stop());
-                    //logWithStyle('Audio stream stopped.', 'info');
+                    logWithStyle('Audio stream stopped.', 'info');
                 }
 
-
-                // Convert the audio chunks into a WAV blob
+                // Convert audio chunks in `audioDataChunks` into a WAV format blob using the provided sample rate
                 const wavBlob = audioToWav(audioDataChunks, audioContext.sampleRate);
-
-                // Load the blob into the audio player for playback
+                // Create a URL for the audio blob to use it as a source for playback in `audioPlayer`
                 const audioUrl = URL.createObjectURL(wavBlob);
                 audioPlayer.src = audioUrl;
-                audioPlayer.load();
-                //logWithStyle('Audio loaded into player.', 'info');
+                audioPlayer.load(); // Load the audio file for playback
+                logWithStyle('Audio loaded into player.', 'info');
 
-                // Convert the audio blob to Base64 and process it
+                // Convert the audio blob to a Base64 string for further processing, especially for splitting into chunks
                 audioBlobToBase64(wavBlob, function(base64Audio) {
-                    //logWithStyle('Audio data converted to Base64 for processing.', 'info');
+                    logWithStyle('Audio data converted to Base64 for processing.', 'info');
 
-                    // Split the Base64 audio data into chunks of 30,000 characters each
-                    const maxChunkSize = 30000;
-                    const audioChunks = splitBase64AudioData(base64Audio, maxChunkSize);
+                    // Splits Base64 audio data into manageable chunks
+                    audioChunks = splitBase64AudioData(base64Audio, maxChunkSize);
 
+                    // If no valid audio data was obtained after splitting, log an error and alert the user
                     if (audioChunks.length === 0) {
-                        //logWithStyle('No audio data available after splitting.', 'error');
+                        logWithStyle('No audio data available after splitting. Please record again.', 'error');
+                        alert('Recording failed. Please try again.');
                         return;
                     }
-
-                    // assign the audio chunks to the appropriate page items
-                    const audioHoldersCapacity = 350;  // The total number of available holders
-                    const itemsAssigned = assignAudioChunksToHolders(audioChunks, pagePrefix, 1);
-
-                    //logWithStyle(`Audio data has been assigned to ${itemsAssigned} page items.`, 'info');
-
-                    // combine the chunks and download as a text file for debugging
-                    const combinedChunks = audioChunks.join('\n');
-
-
+                    // If debug mode is active, download the audio chunks and blob as files for testing
                     if(debug) {
                         debugFilename = 'audio_recording';
                         downloadCustomTextFile(audioChunks, debugFilename, userTracker, sessionCount);
                         downloadAudioBlob(wavBlob, debugFilename);
-                        //logWithStyle('Audio chunks saved to text file for debugging.', 'info');
+                        logWithStyle('Audio chunks saved to text file for debugging.', 'info');
                     }
-
-
-                    itemNames.forEach(itemName => {
-                        const elementId = getPageIdFor(itemName);
-                        logElementValue(elementId);
-                    });
-
-                    //checkAudioHolders(pagePrefix, startRange, endRange)
-                    checkAudioHolders(pagePrefix, 1, 350)
                 });
             });
 
-
-
-            saveButton.addEventListener('click', function () {
-                //logWithStyle('Save button clicked for session ' + sessionCount, 'info');
-
-                // Disable buttons during processing
-                saveButton.disabled = true;
-                saveButton.style.backgroundColor = 'grey';
-                startButton.disabled = true;
-                stopButton.disabled = true;
+            saveButton.addEventListener('click', async function () {
+                logWithStyle('Save button clicked for session ' + sessionCount, 'info');
+                handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'submit', startTime);
 
                 const currentAudioBox = $v('P37_CURRENT_AUDIO_BOX');
                 const userTracker = $v('P37_USER_TRACKER');
 
-                console.log("P37_CURRENT_AUDIO_BOX before submit: " + currentAudioBox);
+                if (!audioChunks || audioChunks.length === 0) {
+                    alert('Audio data is missing. Please record again before saving.');
+                    logWithStyle('Save aborted due to missing audio chunks.', 'error');
+                    saveButton.disabled = false;
+                    saveButton.style.backgroundColor = ''; // Reset button color
+                    return;
+                }
 
-                console.log("Chunks Len:", audioChunks.length);
+                logWithStyle("P37_CURRENT_AUDIO_BOX before submit: " + currentAudioBox, 'trace');
+                logWithStyle("Chunks Len:", audioChunks.length, 'trace');
 
-                // Execute APEX server process with necessary user data only
-                /*
-                apex.server.process(
-                    'SAVE_AUDIO_RECORDING3',
-                    { x01: currentAudioBox, x02: userTracker },
-                    {
-                        success: function(data) {
-                            console.log('Data saved successfully:', data);
+                try {
+                    // Initial check for audio_file_2 population status
+                    let isPopulatedResponse = await apex.server.process(
+                        'IS_AUDIO_FILE_POPULATED',
+                        {
+                            x01: currentAudioBox,
+                            x02: userTracker
                         },
-                        error: function(jqXHR, textStatus, errorThrown) {
-                            console.error('Error saving data:', textStatus, errorThrown);
-                            console.error('Response text:', jqXHR.responseText); // Log the raw response
-                        },
-                        dataType: 'json'  // Ensure that this is correct
+                        {
+                            dataType: 'json'  // Expect JSON response
+                        }
+                    );
+
+                    if (isPopulatedResponse.audio_populated) {
+                        logWithStyle('Audio file already populated. Save operation aborted.', 'warn');
+                        alert('This audio file is already populated. No need to save again.');
+                        apex.page.submit();
+                        location.reload();
+                        return;
                     }
-                );
 
-                */
-                // Restore button states after processing
-                handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, 'submit');
+                    let chunkCount = 0;
+
+                    for (let i = 0; i < audioChunks.length; i++) {
+                        const chunk = audioChunks[i];
+                        chunkCount += 1;
+
+                        console.log(`Sending chunk ${chunkCount}, Length: ${chunk.length}, Content: ${chunk.slice(0, 25)}...`);
+
+                        try {
+                            const response = await apex.server.process(
+                                'SAVE_AUDIO_FILE_2',
+                                {
+                                    x01: currentAudioBox,
+                                    x02: userTracker,
+                                    x03: chunk
+                                },
+                                {
+                                    dataType: 'json'  // Expect JSON response
+                                }
+                            );
+
+                            if (response.audio_updated) {
+                                console.log(`Chunk ${i + 1} saved successfully.`);
+                            } else {
+                                console.warn(`Chunk ${i + 1} failed to update.`);
+                            }
+
+                            // Pause every 50 chunks
+                            if (chunkCount % 50 === 0) {
+                                console.log("Pausing for 500ms...");
+                                await new Promise(resolve => setTimeout(resolve, 500)); // Pause for 500ms
+                            }
+                        } catch (error) {
+                            console.error(`Error in AJAX call for chunk ${i + 1}:`, error);
+                        }
+                    }
+
+                    if (loggingElement) {
+                        loggingElement.style.display = 'none';
+                    }
+
+                    // Final check after saving all chunks
+                    isPopulatedResponse = await apex.server.process(
+                        'IS_AUDIO_FILE_POPULATED',
+                        {
+                            x01: currentAudioBox,
+                            x02: userTracker
+                        },
+                        {
+                            dataType: 'json'  // Expect JSON response
+                        }
+                    );
+                    console.log("IS_AUDIO_FILE_POPULATED response:", isPopulatedResponse);
+
+                    if (isPopulatedResponse) {
+                        logWithStyle('Audio file successfully populated after save operation.', 'info');
+                        apex.page.submit();
+                        location.reload();
+                    } else {
+                        logWithStyle('Warning: Audio file did not populate as expected after saving.', 'warn');
+                    }
+
+                    apex.item('P37_CURRENT_AUDIO_BOX').refresh();
+
+                } catch (error) {
+                    console.error('Error checking if audio is populated:', error);
+                }
             });
-
-
         }
 
-
+        // iterate through the audio recordings elements
         for (let sessionCount = startRecorder; sessionCount <= stopRecorder; sessionCount++) {
-            const startButton = document.getElementById('P' + pageNumber + '_START_RECORDING_' + sessionCount);
-            const stopButton = document.getElementById('P' + pageNumber + '_STOP_RECORDING_' + sessionCount);
-            const saveButton = document.getElementById('P' + pageNumber + '_SAVE_SESSION_RECORDING_' + sessionCount);
-            const audioPlayer = document.getElementById('P' + pageNumber + '_SESSION_AUDIO_PLAYER_' + sessionCount);
+            const startButton = getElementById(pagePrefix, 'START_RECORDING_' + sessionCount);
+            const stopButton = getElementById(pagePrefix, 'STOP_RECORDING_' + sessionCount);
+            const saveButton = getElementById(pagePrefix, 'SAVE_SESSION_RECORDING_' + sessionCount);
+            const audioPlayer = getElementById(pagePrefix, 'SESSION_AUDIO_PLAYER_' + sessionCount);
+            const loggingElement = getElementById(pagePrefix, 'LOGGING_' + sessionCount);
 
-            if (startButton && stopButton && saveButton && audioPlayer) {
-                handleRecording(sessionCount, startButton, stopButton, saveButton, audioPlayer);
+            if (startButton.length && stopButton.length && saveButton.length && audioPlayer.length && loggingElement.length) {
+                handleRecording(sessionCount, startButton[0], stopButton[0], saveButton[0], audioPlayer[0], loggingElement[0]);
             } else {
-                console.error(`Missing elements for session ${sessionCount}:`, { startButton, stopButton, saveButton, audioPlayer });
+                console.error(`Missing elements for session ${sessionCount}:`, { startButton, stopButton, saveButton, audioPlayer, loggingElement });
             }
         }
-    }
 
+   } else {
+
+       await checkMicrophoneQuality();
+
+       setupConditionalDisplayById(
+            pagePrefix + 'RECORDING_MIC',
+            pagePrefix + 'RECORDING_MIC_YES',
+            pagePrefix + 'RECORDING_MIC_YES_LABEL', 'Yes'
+       );
+
+       setupConditionalDisplayById(
+            pagePrefix + 'SIGNUP_REFERRAL',
+            pagePrefix + 'SIGNUP_REFERRAL_OTHER',
+            pagePrefix + 'SIGNUP_REFERRAL_OTHER_LABEL', 'Other'
+       );
+
+        setupExclusiveCheckboxById(
+            'No Experience',
+            'P37_RECORDING_EXPERIENCE',
+            'Other',
+            'P37_RECORDING_EXPERIENCE_OTHER',
+            'P37_RECORDING_EXPERIENCE_OTHER_LABEL'
+        );
+   }
 });
