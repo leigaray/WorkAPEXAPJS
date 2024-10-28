@@ -109,14 +109,15 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         }, 2000);
     } else if (controlSetting === 'submit' || controlSetting === 'save') {
         startButton.disabled = false;
-        stopButton.disabled = true;
+        stopButton.disabled = false;
         saveButton.disabled = true;
         audioPlayer.disabled = true;
+
+        stopButton.classList.add('flashing-blue');
 
         if (loggingElement) {
             loggingElement.style.display = 'block';
             loggingElement.innerText = "Saving your audio...";
-            //loggingElement.classList.add('flashing'); // Apply the flashing effect
         }
 
         logWithStyle('All buttons disabled, recording process complete.', 'info');
