@@ -108,11 +108,12 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
             logWithStyle('Save button enabled after 2 seconds.', 'info');
         }, 2000);
     } else if (controlSetting === 'submit' || controlSetting === 'save') {
-        startButton.disabled = false;
-        stopButton.disabled = false;
+        startButton.disabled = true;
         saveButton.disabled = true;
         audioPlayer.disabled = true;
 
+        stopButton.style.pointerEvents = 'none';
+        stopButton.style.opacity = '0.5';
         stopButton.classList.add('flashing-blue');
 
         if (loggingElement) {
