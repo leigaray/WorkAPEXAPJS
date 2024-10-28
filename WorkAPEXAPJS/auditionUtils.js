@@ -1,39 +1,5 @@
 var mediaPlayerTimer = null;
 
-function fetchPrompts(pageNumber, recordingsNeeded) {
-
-    apex.server.process('FETCH_PROMPTS', {}, {
-        success: function (data) {
-            logWithStyle('Raw data: ' + JSON.stringify(data));  // Log raw data
-
-            let parsedData;
-            if (typeof data === 'object') {
-                parsedData = data;
-            } else {
-                parsedData = JSON.parse(data);  // Parse if it's not an object
-            }
-
-            logWithStyle('Parsed data: ' + JSON.stringify(parsedData));  // Log parsed data
-
-            let minTrxId = parsedData.min_trx_id;
-
-            // Set minTrxId dynamically based on the page number
-            let minTrxIdItem = 'P' + pageNumber + '_MIN_TRX_ID';
-            $s(minTrxIdItem, minTrxId);  // Set the value in APEX
-            logWithStyle(minTrxIdItem + " set to: " + minTrxId);  // Log the change
-
-            // Set the audio box dynamically
-            //let currentAudioBoxItem = 'P' + pageNumber + '_CURRENT_AUDIO_BOX';
-            //$s(currentAudioBoxItem, minTrxId);  // Set the value in APEX
-            //logWithStyle(currentAudioBoxItem + " set to: " + minTrxId);  // I commented this at 2024-10-26|21:01
-
-            // Call the assignJsonToItems function, pass parsedData.prompts and recordingsNeeded
-            assignJsonToItems(parsedData.prompts, recordingsNeeded);
-        }, error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error retrieving data:', textStatus, errorThrown);  // Keep this as error logging
-        }
-    });
-}
 
 // Handle Recording Control States Function
 function handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, controlSetting, timerData) {
@@ -342,6 +308,41 @@ function assignJsonToItems(jsonData, neededSequences) {
             }
         } else {
             logWithStyle('Item ' + itemId + ' not found.', 'warn');
+        }
+    });
+}
+
+function fetchPrompts(pageNumber, recordingsNeeded) {
+
+    apex.server.process('FETCH_PROMPTS', {}, {
+        success: function (data) {
+            logWithStyle('Raw data: ' + JSON.stringify(data));  // Log raw data
+
+            let parsedData;
+            if (typeof data === 'object') {
+                parsedData = data;
+            } else {
+                parsedData = JSON.parse(data);  // Parse if it's not an object
+            }
+
+            logWithStyle('Parsed data: ' + JSON.stringify(parsedData));  // Log parsed data
+
+            let minTrxId = parsedData.min_trx_id;
+
+            // Set minTrxId dynamically based on the page number
+            let minTrxIdItem = 'P' + pageNumber + '_MIN_TRX_ID';
+            $s(minTrxIdItem, minTrxId);  // Set the value in APEX
+            logWithStyle(minTrxIdItem + " set to: " + minTrxId);  // Log the change
+
+            // Set the audio box dynamically
+            //let currentAudioBoxItem = 'P' + pageNumber + '_CURRENT_AUDIO_BOX';
+            //$s(currentAudioBoxItem, minTrxId);  // Set the value in APEX
+            //logWithStyle(currentAudioBoxItem + " set to: " + minTrxId);  // I commented this at 2024-10-26|21:01
+
+            // Call the assignJsonToItems function, pass parsedData.prompts and recordingsNeeded
+            assignJsonToItems(parsedData.prompts, recordingsNeeded);
+        }, error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error retrieving data:', textStatus, errorThrown);  // Keep this as error logging
         }
     });
 }
