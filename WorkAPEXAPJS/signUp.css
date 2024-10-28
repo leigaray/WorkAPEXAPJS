@@ -1,0 +1,210 @@
+/*==============================
+    General Styles
+==============================*/
+
+/* Background color for main form fields */
+#P37_FIRST_NAME, #P37_LAST_NAME, #P37_BIRTH_YEAR, #P37_GENDER, #P37_RACE_MAIN, #P37_RACE_SUB,
+#P37_EDUCATION_LEVEL, #P37_PROFESSION, #P37_NATIVE_LANGUAGE_RIGHT, #P37_YEARS_AT_CURRENT_LOCATION,
+#P37_DIALECT, #P37_RECORDING_LOCATION, #P37_CURRENT_LOCATION, #P37_NATIVE_LOCATION, #P37_ENCOUNTERED_DIALECT,
+#P37_LEARNING_METHOD, #P37_EMAIL, #P37_EDUCATION, #P37_RECORDING_STUDIO, #P37_RECORDING_MIC,
+#P37_RECORDING_MIC_YES, #P37_RECORDING_EXPERIENCE, #P37_RECORDING_EXPERIENCE_OTHER, #P37_NATIVE_LANGUAGE,
+#P37_SIGNUP_REFERRAL, #P37_SIGNUP_REFERRAL_OTHER {
+    background-color: #e0ffff;
+}
+
+/* Hide specific button */
+#P37_UPDATE_AUDIO_DATA {
+    display: none;
+}
+
+/* Wrapper style for form items */
+.t-Form-itemWrapper {
+    background-color: #e0ffff;
+}
+
+/* Error Styling */
+.a-Form-error, .t-Form-error {
+    font-size: 1.7rem;
+    line-height: 1.9rem;
+}
+
+/*==============================
+    Layout for Regions
+==============================*/
+
+/* Main Region - Three Subregions per Row */
+#main_region {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.session-region {
+    width: calc(30% - 20px);
+    margin: 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+/*==============================
+    Prompt and Button Styling
+==============================*/
+
+.prompt-container {
+    margin-bottom: 10px;
+}
+
+/* Button Layout */
+.button-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0px;
+    margin-bottom: 10px;
+}
+
+.button-row button {
+    flex-grow: 1;
+    padding: 10px;
+}
+
+/*==============================
+    Button Styling and Effects
+==============================*/
+
+button {
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #ffffff;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Start Recording Button */
+[id^="P"][id*="_START_RECORDING_"] {
+    background-color: #2E7D32;
+    border-radius: 12px 0 0 12px;
+}
+
+/* Stop Recording Button */
+[id^="P"][id*="_STOP_RECORDING_"] {
+    background-color: #C62828;
+    border-radius: 0;
+}
+
+/* Save Session Recording Button */
+[id^="P"][id*="_SAVE_SESSION_RECORDING_"] {
+    background-color: #1565C0;
+    border-radius: 0 12px 12px 0;
+}
+
+/* Audio Player Container */
+.audio-player-container {
+    margin-top: 20px;
+}
+
+[id^="P"][id*="_SESSION_AUDIO_PLAYER_"] {
+    width: 100%;
+}
+
+/*==============================
+    Text and Label Styling
+==============================*/
+
+#P37_RECORDING_STUDIO_NO_LABEL {
+    font-size: smaller;
+}
+
+.t-Form-label {
+    font-size: 22px;
+    font-weight: bold;
+    font-family: 'Noto Sans', sans-serif;
+}
+
+/*==============================
+    Flashing Effects
+==============================*/
+
+.flashing {
+    background-color: red !important;
+    animation: flash 1s infinite;
+}
+
+@keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Blue Flashing Effect for Save Button */
+.flashing-blue {
+    background-color: #1565C0 !important;
+    color: white;
+    animation: flash-blue 1s infinite;
+}
+
+@keyframes flash-blue {
+    0% { background-color: #1565C0; color: white; }
+    50% { background-color: #0D47A1; color: white; }
+    100% { background-color: #1565C0; color: white; }
+}
+
+/*==============================
+    Overlay for Disabled Buttons
+==============================*/
+
+.button-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    z-index: 10;
+}
+
+/*==============================
+    Prompt Styling
+==============================*/
+
+.prompt-wrapper {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+}
+
+.prompt-title {
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.prompt-text {
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #444;
+}
+
+.prompt-details {
+    font-size: 14px;
+    color: #666;
+}
+
+.prompt-details strong {
+    color: #000;
+}
+
+/* No Data Styling */
+.no-data {
+    color: red;
+    font-size: 16px;
+}
