@@ -1,3 +1,5 @@
+var mediaPlayerTime = null;
+
 function fetchPrompts(pageNumber, recordingsNeeded) {
 
     apex.server.process('FETCH_PROMPTS', {}, {
