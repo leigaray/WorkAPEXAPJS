@@ -111,15 +111,7 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         startButton.disabled = true;
         saveButton.disabled = true;
         audioPlayer.disabled = true;
-
         stopButton.disabled = true;
-        stopButton.style.pointerEvents = 'none';
-        stopButton.classList.add('flashing-blue');
-
-        const overlay = document.createElement('div');
-        overlay.className = 'button-overlay';
-        stopButton.style.position = 'relative';
-        stopButton.appendChild(overlay);
 
         if (loggingElement) {
             loggingElement.style.display = 'block';
@@ -127,6 +119,10 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         }
 
         logWithStyle('All buttons disabled, recording process complete.', 'info');
+
+        startButton.disabled = true;
+        saveButton.disabled = true;
+        audioPlayer.disabled = true;
 
         if (mediaPlayerTimer) {
             clearInterval(mediaPlayerTimer);
