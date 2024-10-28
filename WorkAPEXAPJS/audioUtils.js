@@ -40,6 +40,76 @@ async function initMediaRecorder(constraints) {
     }
 }
 
+async function checkMicrophoneQuality() {
+    try {
+        // List all available audio devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(device => device.kind === 'audioinput');
+
+        if (audioInputs.length === 0) {
+            alert("No audio input devices found. Please connect a microphone.");
+            return;
+        }
+
+        console.log("Available audio input devices:");
+        let highestQualityDevice = null;
+        let highestSampleRate = 0;
+        let selectedDeviceSampleRate = 0;
+
+        for (const device of audioInputs) {
+            console.log(`Checking device: ${device.label} (ID: ${device.deviceId})`);
+
+            // Attempt to access each microphone and get its sample rate
+            const testStream = await navigator.mediaDevices.getUserMedia({
+                audio: { deviceId: device.deviceId }
+            });
+            const testAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const testSource = testAudioContext.createMediaStreamSource(testStream);
+
+            // Get sample rate for the device
+            const sampleRate = testAudioContext.sampleRate;
+            console.log(`Sample rate for ${device.label}: ${sampleRate} Hz`);
+
+            // Determine if this device has the highest sample rate so far
+            if (sampleRate > highestSampleRate) {
+                highestSampleRate = sampleRate;
+                highestQualityDevice = device;
+            }
+
+            // Check if the device is the default selected device (usually the system's default)
+            if (device.deviceId === audioInputs[0].deviceId) {
+                selectedDeviceSampleRate = sampleRate;
+
+                // Check if the default microphone's quality meets the acceptable rate
+                if (sampleRate < 44100) {
+                    alert(`Warning: Your default microphone, "${device.label}", has a sample rate of ${sampleRate} Hz, which is below CD quality. Quality may be affected.`);
+                } else {
+                    console.log(`Default microphone "${device.label}" has an acceptable sample rate of ${sampleRate} Hz.`);
+                }
+            }
+
+            // Cleanup: Stop the audio stream and close the audio context after the check
+            testStream.getTracks().forEach(track => track.stop());
+            testAudioContext.close();
+        }
+
+        // Log and notify if there’s a recommended device with a higher sample rate
+        if (highestQualityDevice && highestSampleRate > selectedDeviceSampleRate) {
+            console.log(`Recommended device for higher quality: ${highestQualityDevice.label} with a sample rate of ${highestSampleRate} Hz.`);
+            alert(`For better quality, consider using "${highestQualityDevice.label}" which has a sample rate of ${highestSampleRate} Hz.`);
+        }
+
+        // Inform user if the default device does not meet criteria, but another device does
+        if (selectedDeviceSampleRate < 44100 && highestSampleRate >= 44100) {
+            alert(`Your default microphone does not meet the quality criteria. Consider using "${highestQualityDevice.label}" which meets the quality standard.`);
+        }
+
+    } catch (error) {
+        alert("Microphone access failed or is not available. Please ensure a working microphone is connected.");
+        console.error("Microphone quality check failed:", error);
+    }
+}
+
 // Converts an audio Blob to Base64 and executes a callback with the result
 function audioBlobToBase64(blob, callback) {
     if (!blob || typeof callback !== 'function') {
