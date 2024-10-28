@@ -13,19 +13,34 @@ async function initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile) 
             logWithStyle(`Received audio chunk, size: ${chunk.length}`, 'info');
         };
 
-        const stream = await navigator.mediaDevices.getUserMedia({audio: {channelCount}});
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount } });
+        const tracks = stream.getAudioTracks();
+        const settings = tracks[0].getSettings();
+
+        // Check sample rate and alert if below 48000
+        if (settings.sampleRate < 48000) {
+            alert('Detected low-resolution audio. If you are using a Bluetooth headset, please switch to a wired setup.');
+
+            // Stop the stream and disconnect the processor node
+            processorNode.disconnect();
+            stream.getTracks().forEach(track => track.stop());
+
+            return false; // Return false to indicate recording should not proceed
+        }
+
         const source = audioContext.createMediaStreamSource(stream);
         source.connect(processorNode);
         processorNode.connect(audioContext.destination);
 
         logWithStyle(`AudioWorklet initialized with sampleRate: ${sampleRate}, channelCount: ${channelCount}`, 'info');
 
-        return { audioContext, processorNode, stream, audioDataChunks };
+        return { audioContext, processorNode, stream, audioDataChunks, proceed: true }; // Return true to proceed with recording
     } catch (error) {
         logWithStyle(`Failed to initialize AudioWorkletNode: ${error}`, 'error');
-        return null;
+        return false; // Return false on error
     }
 }
+
 
 // Initializes MediaRecorder with given audio constraints
 async function initMediaRecorder(constraints) {

@@ -135,3 +135,13 @@ function setupExclusiveCheckboxById(noExperienceValue, allOptionsName, showValue
 function setupExclusiveCheckboxByElement(noExperienceCheckbox, otherOptionsCheckboxes, showValueCheckbox, target, targetLabel) {
     setupExclusiveCheckboxBehavior(noExperienceCheckbox, otherOptionsCheckboxes, showValueCheckbox, target, targetLabel);
 }
+
+function checkBrowser() {
+    const userAgent = navigator.userAgent;
+
+    if (userAgent.includes("Firefox")) {
+        alert("This application is not compatible with Firefox. Please use another browser.");
+        return false;
+    }
+    return true;
+}
