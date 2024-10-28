@@ -138,10 +138,14 @@ function setupExclusiveCheckboxByElement(noExperienceCheckbox, otherOptionsCheck
 
 function checkBrowser() {
     const userAgent = navigator.userAgent;
+    console.log(`Browser User Agent: ${userAgent}`);
 
     if (userAgent.includes("Firefox")) {
+        console.warn("Browser check failed: Firefox detected. This application is not compatible with Firefox.");
         alert("This application is not compatible with Firefox. Please use another browser.");
         return false;
     }
+
+    console.log("Browser check passed: Compatible browser detected.");
     return true;
 }
