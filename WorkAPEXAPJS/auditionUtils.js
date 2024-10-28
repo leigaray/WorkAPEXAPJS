@@ -112,12 +112,14 @@ function handleRecordingControlStates(startButton, stopButton, saveButton, audio
         saveButton.disabled = true;
         audioPlayer.disabled = true;
 
+        stopButton.disabled = true;
+        stopButton.style.pointerEvents = 'none';
+        stopButton.classList.add('flashing-blue');
+
         const overlay = document.createElement('div');
         overlay.className = 'button-overlay';
         stopButton.style.position = 'relative';
         stopButton.appendChild(overlay);
-
-        stopButton.classList.add('flashing-blue');
 
         if (loggingElement) {
             loggingElement.style.display = 'block';
