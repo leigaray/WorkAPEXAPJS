@@ -939,48 +939,53 @@ function setupConditionalDisplayByElement(selectList, target, targetLabel = null
     }
 }
 
+function setupExclusiveCheckboxById(noExperienceValue, allOptionsName, showValue, targetId, targetLabelId) {
+    // Select elements based on IDs and values
+    var noExperience = $('input:checkbox[value="' + noExperienceValue + '"]');
+    var allOtherOptions = $('input:checkbox[name="' + allOptionsName + '"]').not(noExperience);
+    var showValueCheckbox = $('input:checkbox[value="' + showValue + '"]');
 
-// Generic function that takes IDs
-function setupExclusiveCheckboxById(checkboxGroupName, pivotalCheckboxId, pivotalValue) {
-    const pivotalCheckbox = $(`input:checkbox[id="${pivotalCheckboxId}"][value="${pivotalValue}"]`);
-    const otherCheckboxes = $(`input:checkbox[name="${checkboxGroupName}"]`).not(pivotalCheckbox);
+    // Use the same logic as before
+    setupExclusiveCheckboxBehavior(noExperience, allOtherOptions, showValueCheckbox, targetId, targetLabelId);
+}
 
-    if (pivotalCheckbox.length && otherCheckboxes.length) {
-        // Uncheck others when the pivotal checkbox is selected
-        pivotalCheckbox.change(function () {
-            if (this.checked) {
-                otherCheckboxes.prop('checked', false);
-            }
-        });
+function setupExclusiveCheckboxBehavior(noExperienceCheckbox, otherOptionsCheckboxes, showValueCheckbox, targetId, targetLabelId) {
+    // "No Experience" checkbox event listener
+    noExperienceCheckbox.change(function () {
+        if (this.checked) {
+            otherOptionsCheckboxes.prop('checked', false);
+        }
+        handleShowValue(showValueCheckbox, targetId, targetLabelId); // Update display
+    });
 
-        // Uncheck the pivotal checkbox when any other is selected
-        otherCheckboxes.change(function () {
-            if (this.checked) {
-                pivotalCheckbox.prop('checked', false);
-            }
-        });
+    // Other options event listener
+    otherOptionsCheckboxes.change(function () {
+        if (this.checked) {
+            noExperienceCheckbox.prop('checked', false);
+        }
+        handleShowValue(showValueCheckbox, targetId, targetLabelId); // Update display
+    });
+
+    // ShowValue checkbox event listener
+    showValueCheckbox.change(function () {
+        handleShowValue(showValueCheckbox, targetId, targetLabelId);
+    });
+
+    // Initial state setup
+    handleShowValue(showValueCheckbox, targetId, targetLabelId);
+}
+
+// Helper function to show/hide elements based on the showValue checkbox state
+function handleShowValue(showValueCheckbox, targetId, targetLabelId) {
+    if (showValueCheckbox.is(':checked')) {
+        if (targetId) $('#' + targetId).show();
+        if (targetLabelId) $('#' + targetLabelId).show();
     } else {
-        console.warn('Pivotal or other checkboxes not found with provided IDs or name.');
+        if (targetId) $('#' + targetId).hide();
+        if (targetLabelId) $('#' + targetLabelId).hide();
     }
 }
 
-// Generic function that takes elements directly
-function setupExclusiveCheckboxByElement(pivotalCheckbox, otherCheckboxes) {
-    if (pivotalCheckbox && otherCheckboxes.length) {
-        // Uncheck others when the pivotal checkbox is selected
-        $(pivotalCheckbox).change(function () {
-            if (this.checked) {
-                $(otherCheckboxes).prop('checked', false);
-            }
-        });
-
-        // Uncheck the pivotal checkbox when any other is selected
-        $(otherCheckboxes).change(function () {
-            if (this.checked) {
-                $(pivotalCheckbox).prop('checked', false);
-            }
-        });
-    } else {
-        console.warn('Pivotal checkbox or other checkboxes not provided correctly.');
-    }
+function setupExclusiveCheckboxByElement(noExperienceCheckbox, allOtherOptionsCheckboxes, showValueCheckbox, targetId, targetLabelId) {
+    setupExclusiveCheckboxBehavior(noExperienceCheckbox, allOtherOptionsCheckboxes, showValueCheckbox, targetId, targetLabelId);
 }
