@@ -1,4 +1,4 @@
-var mediaPlayerTime = null;
+var mediaPlayerTimer = null;
 
 function fetchPrompts(pageNumber, recordingsNeeded) {
 
