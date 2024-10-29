@@ -57,7 +57,6 @@ async function initMediaRecorder(constraints) {
 
 async function checkMicrophoneQuality() {
     try {
-        // List all available audio devices
         const devices = await navigator.mediaDevices.enumerateDevices();
         const audioInputs = devices.filter(device => device.kind === 'audioinput');
 
@@ -70,12 +69,12 @@ async function checkMicrophoneQuality() {
         let highestQualityDevice = null;
         let highestSampleRate = 0;
         let defaultDeviceSampleRate = 0;
-        let defaultDeviceId = audioInputs[0].deviceId; // Assuming the first audio input is the default
+        let defaultDeviceId = audioInputs[0].deviceId;
+        let defaultDeviceLabel = audioInputs[0].label; // store default device name for later use
 
         for (const device of audioInputs) {
             console.log(`Checking device: ${device.label} (ID: ${device.deviceId})`);
 
-            // Attempt to access each microphone and get its sample rate
             const testStream = await navigator.mediaDevices.getUserMedia({
                 audio: { deviceId: device.deviceId }
             });
@@ -83,7 +82,6 @@ async function checkMicrophoneQuality() {
             const sampleRate = testAudioContext.sampleRate;
             console.log(`Sample rate for ${device.label}: ${sampleRate} Hz`);
 
-            // Check if this device has the highest sample rate so far
             if (sampleRate > highestSampleRate) {
                 highestSampleRate = sampleRate;
                 highestQualityDevice = device;
@@ -105,10 +103,10 @@ async function checkMicrophoneQuality() {
         }
 
         if (highestSampleRate >= 48000) {
-            alert(`Your default microphone does not meet the 48,000 Hz quality criteria. Consider switching to "${highestQualityDevice.label}" with a sample rate of ${highestSampleRate} Hz.`);
+            alert(`Your default microphone "${defaultDeviceLabel}" (ID: ${defaultDeviceId}) does not meet the 48,000 Hz quality criteria. Consider switching to "${highestQualityDevice.label}" with a sample rate of ${highestSampleRate} Hz.`);
             return false;
         } else {
-            alert("No audio devices found with a sample rate of 48,000 Hz or higher. Please connect a higher-quality microphone.");
+            alert(`No audio devices found with a sample rate of 48,000 Hz or higher. Default microphone "${defaultDeviceLabel}" (ID: ${defaultDeviceId}) has a sample rate of ${defaultDeviceSampleRate} Hz.`);
             return false;
         }
 
