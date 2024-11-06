@@ -202,3 +202,135 @@ function splitBase64AudioData(base64Data, maxLength) {
     logWithStyle(`splitBase64AudioData complete. Total chunks: ${chunks.length}`, 'info');
     return chunks;
 }
+
+//_UNSORTED_____________
+function drawWaveform(animationFrameIdRef, analyser, dataArray, canvasContext, canvas, color = 'green') {
+    const animate = () => {
+        animationFrameIdRef.current = requestAnimationFrame(animate);
+        analyser.getByteTimeDomainData(dataArray);
+
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        canvasContext.lineWidth = 4;
+        canvasContext.strokeStyle = color;
+        canvasContext.beginPath();
+
+        const sliceWidth = canvas.width / dataArray.length;
+        let x = 0;
+
+        for (let i = 0; i < dataArray.length; i++) {
+            const v = dataArray[i] / 128.0;
+            const y = (v * canvas.height) / 2 * 1.5;
+
+            if (i === 0) {
+                canvasContext.moveTo(x, y);
+            } else {
+                canvasContext.lineTo(x, y);
+            }
+
+            x += sliceWidth;
+        }
+
+        canvasContext.lineTo(canvas.width, canvas.height / 2);
+        canvasContext.stroke();
+    };
+
+    animate();
+}
+
+// Utility function to clear waveform from a canvas
+function clearWaveform(canvasContext, canvas, color = 'green') {
+    canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+    canvasContext.lineWidth = 4;
+    canvasContext.strokeStyle = color;
+    canvasContext.beginPath();
+    canvasContext.moveTo(0, canvas.height / 2);
+    canvasContext.lineTo(canvas.width, canvas.height / 2);
+    canvasContext.stroke();
+}
+
+// Start recording waveform visualization
+function startRecordingWaveform(analyser, dataArray, canvasContext, canvas, animationFrameIdRef) {
+    drawWaveform(animationFrameIdRef, analyser, dataArray, canvasContext, canvas, 'green');
+}
+
+// Start playback waveform visualization
+function startPlaybackWaveform(playbackAnalyser, playbackDataArray, playbackCanvasContext, playbackCanvas, playbackAnimationFrameIdRef) {
+    drawWaveform(playbackAnimationFrameIdRef, playbackAnalyser, playbackDataArray, playbackCanvasContext, playbackCanvas, 'blue');
+}
+
+// Clear recording waveform
+function clearRecordingWaveform(canvasContext, canvas) {
+    clearWaveform(canvasContext, canvas, 'green');
+}
+
+// Clear playback waveform
+function clearPlaybackWaveform(playbackCanvasContext, playbackCanvas) {
+    clearWaveform(playbackCanvasContext, playbackCanvas, 'blue');
+}
+
+// Helper to create a new canvas element
+function createCanvas(audioPlayer, canvasId, display = 'block') {
+    const canvas = document.createElement("canvas");
+    canvas.id = canvasId;
+    canvas.width = audioPlayer.clientWidth;
+    canvas.height = 100;
+    canvas.style.display = display;
+    audioPlayer.parentElement.insertBefore(canvas, audioPlayer);
+    return canvas;
+}
+
+// Stop the audio stream
+function stopStream(stream) {
+    const tracks = stream.getTracks();
+    tracks.forEach(track => track.stop());
+    logWithStyle('Audio stream stopped.', 'info');
+}
+
+// Cancel the animation frame
+function cancelAnimation(animationFrameId) {
+    if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+    }
+}
+
+// Handle errors during recording
+function handleRecordingError(message = 'Recording aborted due to low sample rate.') {
+    logWithStyle(message, 'error');
+    alert('Recording cannot proceed due to insufficient audio quality. Please use a wired setup.');
+    handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop');
+    startButton.disabled = true;
+    saveButton.disabled = true;
+}
+
+// Setup playback visualization
+function setupPlayback(audioPlayer, playbackCanvas, canvas, wavBlob, playbackContext, playbackAnalyser, playbackDataArray, playbackCanvasContext, playbackAnimationFrameId) {
+    audioPlayer.onplay = async function() {
+        playbackCanvas.style.display = 'block';
+        canvas.style.display = 'none';
+
+        if (!playbackContext) {
+            playbackContext = new AudioContext();
+            playbackAnalyser = playbackContext.createAnalyser();
+            playbackAnalyser.fftSize = 2048;
+            playbackDataArray = new Uint8Array(playbackAnalyser.frequencyBinCount);
+        }
+
+        const arrayBuffer = await wavBlob.arrayBuffer();
+        const audioBuffer = await playbackContext.decodeAudioData(arrayBuffer);
+
+        const playbackSource = playbackContext.createBufferSource();
+        playbackSource.buffer = audioBuffer;
+        playbackSource.connect(playbackAnalyser);
+        playbackAnalyser.connect(playbackContext.destination);
+        playbackSource.start();
+
+        startPlaybackWaveform(playbackAnalyser, playbackDataArray, playbackCanvasContext, playbackCanvas, playbackAnimationFrameId);
+
+        playbackSource.onended = () => cancelAnimation(playbackAnimationFrameId);
+    };
+
+    audioPlayer.onpause = function() {
+        cancelAnimation(playbackAnimationFrameId);
+        clearPlaybackWaveform(playbackCanvasContext, playbackCanvas);
+    };
+}
