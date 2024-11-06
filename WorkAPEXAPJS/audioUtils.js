@@ -2,6 +2,8 @@
 async function initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile) {
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)({sampleRate});
+        console.log("Sample rate in Audio Context:", audioContext.sampleRate);
+        console.log("Channel Count:", channelCount);
         await audioContext.audioWorklet.addModule(audioProcessorJSFile);
 
         const processorNode = new AudioWorkletNode(audioContext, 'audio-processor');
