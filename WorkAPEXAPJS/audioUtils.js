@@ -34,7 +34,7 @@ async function initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile) 
         source.connect(processorNode);
         processorNode.connect(audioContext.destination);
 
-        logWithStyle(`AudioWorklet initialized with sampleRate: ${sampleRate}, channelCount: ${channelCount}`, 'info');
+        logWithStyle(`AudioWorklet initialized with sampleRate: ${sampleRate}, channelCount: ${channelCount}`, 'trace');
 
         return { audioContext, processorNode, stream, audioDataChunks, proceed: true }; // Return true to proceed with recording
     } catch (error) {
