@@ -204,6 +204,7 @@ function splitBase64AudioData(base64Data, maxLength) {
 }
 
 //_UNSORTED_____________
+// Draw the waveform on the canvas
 function drawWaveform(animationFrameIdRef, analyser, dataArray, canvasContext, canvas, color = 'green') {
     const animate = () => {
         animationFrameIdRef.current = requestAnimationFrame(animate);
@@ -294,7 +295,7 @@ function cancelAnimation(animationFrameId) {
 }
 
 // Handle errors during recording
-function handleRecordingError(message = 'Recording aborted due to low sample rate.') {
+function handleRecordingError(startButton, stopButton, saveButton, audioPlayer, loggingElement, message = 'Recording aborted due to low sample rate.') {
     logWithStyle(message, 'error');
     alert('Recording cannot proceed due to insufficient audio quality. Please use a wired setup.');
     handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop');
