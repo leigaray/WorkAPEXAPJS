@@ -136,6 +136,35 @@ function setupExclusiveCheckboxByElement(noExperienceCheckbox, otherOptionsCheck
     setupExclusiveCheckboxBehavior(noExperienceCheckbox, otherOptionsCheckboxes, showValueCheckbox, target, targetLabel);
 }
 
+//______________________________________________________________________________________________________________________
+function setupCheckboxDisplayBehavior(noExperienceCheckbox, showValueCheckbox, target, targetLabel) {
+    const handleDisplay = () => {
+        const displayValue = showValueCheckbox.is(':checked') ? 'show' : 'hide';
+        if (target) $(target)[displayValue]();
+        if (targetLabel) $(targetLabel)[displayValue]();
+    };
+
+    // Setup event listeners for non-exclusive checkbox display behavior
+    noExperienceCheckbox.change(handleDisplay);
+    showValueCheckbox.change(handleDisplay);
+
+    handleDisplay(); // Initial setup based on the current checkbox state
+}
+
+function setupCheckboxDisplayById(noExperienceValue, showValue, targetId, targetLabelId) {
+    const noExperienceCheckbox = $(`input:checkbox[value="${noExperienceValue}"]`);
+    const showValueCheckbox = $(`input:checkbox[value="${showValue}"]`);
+    const target = targetId ? `#${targetId}` : null;
+    const targetLabel = targetLabelId ? `#${targetLabelId}` : null;
+
+    setupCheckboxDisplayBehavior(noExperienceCheckbox, showValueCheckbox, target, targetLabel);
+}
+
+function setupCheckboxDisplayByElement(noExperienceCheckbox, showValueCheckbox, target, targetLabel) {
+    setupCheckboxDisplayBehavior(noExperienceCheckbox, showValueCheckbox, target, targetLabel);
+}
+
+//______________________________________________________________________________________________________________________
 function checkBrowser() {
     const userAgent = navigator.userAgent;
     console.log(`Browser User Agent: ${userAgent}`);
