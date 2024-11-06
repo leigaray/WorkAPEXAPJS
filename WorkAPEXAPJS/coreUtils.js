@@ -164,6 +164,51 @@ function setupCheckboxDisplayByElement(noExperienceCheckbox, showValueCheckbox, 
     setupCheckboxDisplayBehavior(noExperienceCheckbox, showValueCheckbox, target, targetLabel);
 }
 
+
+function setupCheckboxDisplayByValue(containerId, checkboxValue, targetId, targetLabelId) {
+            // Verify the containerId, targetId, and targetLabelId are valid
+            if (!containerId || !targetId || !targetLabelId) {
+                console.error("Invalid ID(s) provided:", { containerId, targetId, targetLabelId });
+                return;
+            }
+
+            // Select the checkbox container and the target elements
+            const container = $(`#${containerId}`);
+            const target = $(`#${targetId}`);
+            const targetLabel = $(`#${targetLabelId}`);
+
+            // Verify the container exists in the DOM
+            if (container.length === 0) {
+                console.error(`Container with ID "${containerId}" not found.`);
+                return;
+            }
+
+            // Find the specific checkbox within the container that matches the provided value
+            const checkbox = container.find(`input[type="checkbox"][value="${checkboxValue}"]`);
+
+            if (checkbox.length === 0) {
+                console.warn(`Checkbox with value "${checkboxValue}" not found in container "${containerId}".`);
+                return;
+            }
+
+            // Define the function to toggle display based on checkbox state
+            const handleDisplay = () => {
+                if (checkbox.is(':checked')) {
+                    target.show();
+                    targetLabel.show();
+                } else {
+                    target.hide();
+                    targetLabel.hide();
+                }
+            };
+
+            // Attach the change event listener to the checkbox to allow interaction
+            checkbox.on('change', handleDisplay);
+
+            // Initial setup based on the current checkbox state
+            handleDisplay();
+        }
+
 //______________________________________________________________________________________________________________________
 function checkBrowser() {
     const userAgent = navigator.userAgent;
