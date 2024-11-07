@@ -254,7 +254,7 @@ function stopTimer(loggingElement, startTime, intervalId) {
     loggingElement.innerText = `Recording stopped. Total time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function assignJsonToItems(jsonData, neededSequences) {
+function assignJsonToItems(jsonData, neededSequences, show_details=true) {
     console.log("Using assignJsonToItems(jsonData)");
     console.log("jsonData is the prompt coming from the db to be parsed and presented in the UI.")
 
@@ -284,22 +284,35 @@ function assignJsonToItems(jsonData, neededSequences) {
                 let genre = match[4].trim();
                 let emotion = match[5].trim();
                 let intensity = match[6].trim();
-                let htmlContent = `
-					<div class="prompt-wrapper">
-						<div class="prompt-title" style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
-							Prompt ${promptNum} of ${neededSequences}:
-						</div>
-						<div class="prompt-text" style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 10px;">
-							${promptText}
-						</div>
-						<div class="prompt-details" style="font-size: 14px; color: #555;">
-							<span><strong>Domain:</strong> ${domain}</span><br>
-							<span><strong>Genre:</strong> ${genre}</span><br>
-							<span><strong>Emotion:</strong> ${emotion}</span><br>
-							<span><strong>Intensity:</strong> ${intensity}</span>
-						</div>
-					</div>
-					`;
+                if (show_details) {
+                    let htmlContent = `
+                        <div class="prompt-wrapper">
+                            <div class="prompt-title" style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+                                Prompt ${promptNum} of ${neededSequences}:
+                            </div>
+                            <div class="prompt-text" style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 10px;">
+                                ${promptText}
+                            </div>
+                            <div class="prompt-details" style="font-size: 14px; color: #555;">
+                                <span><strong>Domain:</strong> ${domain}</span><br>
+                                <span><strong>Genre:</strong> ${genre}</span><br>
+                                <span><strong>Emotion:</strong> ${emotion}</span><br>
+                                <span><strong>Intensity:</strong> ${intensity}</span>
+                            </div>
+                        </div>
+                        `;
+                } else {
+                    let htmlContent = `
+                        <div class="prompt-wrapper">
+                            <div class="prompt-title" style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+                                Prompt ${promptNum} of ${neededSequences}:
+                            </div>
+                            <div class="prompt-text" style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 10px;">
+                                ${promptText}
+                            </div>
+                        </div>
+                        `;
+                }
                 apexItem.innerHTML = htmlContent;
                 logWithStyle("Assigned value to " + itemId + ": " + htmlContent);
             } else {
@@ -312,7 +325,7 @@ function assignJsonToItems(jsonData, neededSequences) {
     });
 }
 
-function fetchPrompts(pageNumber, recordingsNeeded, parse_json) {
+function fetchPrompts(pageNumber, recordingsNeeded, show_details=true) {
 
     apex.server.process('FETCH_PROMPTS', {}, {
         success: function (data) {
@@ -340,9 +353,8 @@ function fetchPrompts(pageNumber, recordingsNeeded, parse_json) {
             //logWithStyle(currentAudioBoxItem + " set to: " + minTrxId);  // I commented this at 2024-10-26|21:01
 
             // Call the assignJsonToItems function, pass parsedData.prompts and recordingsNeeded
-            if (parse_json) {
-                assignJsonToItems(parsedData.prompts, recordingsNeeded);
-            }
+            assignJsonToItems(parsedData.prompts, recordingsNeeded, show_details);
+
         }, error: function (jqXHR, textStatus, errorThrown) {
             console.error('Error retrieving data:', textStatus, errorThrown);  // Keep this as error logging
         }
