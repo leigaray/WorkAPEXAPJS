@@ -284,8 +284,9 @@ function assignJsonToItems(jsonData, neededSequences, show_details=true) {
                 let genre = match[4].trim();
                 let emotion = match[5].trim();
                 let intensity = match[6].trim();
+                let htmlContent = '';
                 if (show_details) {
-                    let htmlContent = `
+                    htmlContent = `
                         <div class="prompt-wrapper">
                             <div class="prompt-title" style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
                                 Prompt ${promptNum} of ${neededSequences}:
@@ -302,7 +303,7 @@ function assignJsonToItems(jsonData, neededSequences, show_details=true) {
                         </div>
                         `;
                 } else {
-                    let htmlContent = `
+                    htmlContent = `
                         <div class="prompt-wrapper">
                             <div class="prompt-title" style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
                                 Prompt ${promptNum} of ${neededSequences}:
