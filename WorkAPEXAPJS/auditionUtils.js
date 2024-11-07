@@ -312,7 +312,7 @@ function assignJsonToItems(jsonData, neededSequences) {
     });
 }
 
-function fetchPrompts(pageNumber, recordingsNeeded) {
+function fetchPrompts(pageNumber, recordingsNeeded, parse_json) {
 
     apex.server.process('FETCH_PROMPTS', {}, {
         success: function (data) {
@@ -340,7 +340,9 @@ function fetchPrompts(pageNumber, recordingsNeeded) {
             //logWithStyle(currentAudioBoxItem + " set to: " + minTrxId);  // I commented this at 2024-10-26|21:01
 
             // Call the assignJsonToItems function, pass parsedData.prompts and recordingsNeeded
-            assignJsonToItems(parsedData.prompts, recordingsNeeded);
+            if (parse_json) {
+                assignJsonToItems(parsedData.prompts, recordingsNeeded);
+            }
         }, error: function (jqXHR, textStatus, errorThrown) {
             console.error('Error retrieving data:', textStatus, errorThrown);  // Keep this as error logging
         }
