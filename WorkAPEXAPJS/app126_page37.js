@@ -1,6 +1,6 @@
 // Configuration Constants
-const sampleRate = 48000;               // CD-quality audio
-const channelCount = 2;                 // Dual channel
+const sampleRate = 44100;               // CD-quality audio
+const channelCount = 1;                 // Dual channel
 const constraints = {audio: true};      // For audio-only media recording
 const recordingsNeeded = 3;             // Total recordings required
 const audioProcessorJSFile = '#APP_IMAGES#audio-processor.js'; // Path to audio processor script
@@ -104,218 +104,330 @@ document.addEventListener('DOMContentLoaded', async function (event) {
                 drawRiver();
             }
 
+            function showAlreadySavedMessage(messageElementId) {
+                // Prevent multiple submissions
+                if (showAlreadySavedMessage.alreadySubmitted) {
+                    console.log("Page submission already in process.");
+                    return;
+                }
+
+                showAlreadySavedMessage.alreadySubmitted = true;
+
+                // Show the already saved message
+                const messageElement = document.getElementById(messageElementId);
+                if (messageElement) {
+                    messageElement.style.display = 'block';
+                }
+
+                // Wait for 2 seconds to allow the message to display
+                setTimeout(function () {
+                    console.log("Submitting page after showing message...");
+                    apex.page.submit();
+                    showAlreadySavedMessage.alreadySubmitted = false;
+                }, 2000);  // Delay for 2 seconds (2000 ms)
+            }
+
 
             function handleRecording(sessionCount, startButton, stopButton, saveButton, audioPlayer, loggingElement) {
+                startButton.disabled = true;
+                stopButton.disabled = true;
+                saveButton.disabled = true;
+                audioPlayer.disabled = true;
 
+                const currentAudioBox = $v(pagePrefix + 'CURRENT_AUDIO_BOX');
+                const userTracker = $v(pagePrefix + 'USER_TRACKER');
+                let isPopulatedResponse = null;
 
-
-                let audioDataChunks = [];
-                let volumeCanvas;
-                let volumeProcessorNode;
-                let startTime = 0.0;
-
-
-                startButton.addEventListener('click', async function () {
-
-                        logWithStyle('Start button clicked for session ' + sessionCount, 'info');
-                        startTime = handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'start');
-
-                        if (!volumeCanvas) {
-                            volumeCanvas = createVolumeCanvas(audioPlayer);
-                        }
-
-                        try {
-                            const result = await initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile);
-                            if (result) {
-                                audioContext = result.audioContext;
-                                processorNode = result.processorNode;
-                                stream = result.stream;
-                                audioDataChunks = result.audioDataChunks;
-
-                                await audioContext.audioWorklet.addModule(volumenProcessorJSFile);
-                                volumeProcessorNode = new AudioWorkletNode(audioContext, 'volume-processor');
-                                const source = audioContext.createMediaStreamSource(stream);
-                                source.connect(volumeProcessorNode);
-                                source.connect(processorNode);
-
-                                // Set up the river-style visualizer
-                                const volumeAnalyser = new AnalyserNode(audioContext, { fftSize: 256 });
-                                source.connect(volumeAnalyser);
-                                riverStyleSpectrumVisualizer(volumeAnalyser, volumeCanvas);
-
-                                logWithStyle('Recording and volume visualization started.', 'info');
-                            } else {
-                                logWithStyle('Recording aborted due to low sample rate.', 'error');
-                                alert('Recording cannot proceed due to insufficient audio quality. Please use a wired setup.');
-                                handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop');
-                                startButton.disabled = true;
-                                saveButton.disabled = true;
-                            }
-                        } catch (error) {
-                            logWithStyle('Error starting recording: ' + error.message, 'error');
-                            handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop');
-                            startButton.disabled = true;
-                            saveButton.disabled = true;
-                        }
-
-
-                });
-
-
-
-
-                stopButton.addEventListener('click', function () {
-                    logWithStyle('Stop button clicked for session ' + sessionCount, 'info');
-                    handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop', startTime);
-
-                    if (stream) {
-                        const tracks = stream.getTracks();
-                        tracks.forEach(track => track.stop());
-                        logWithStyle('Audio stream stopped.', 'info');
-                    }
-
-                    const wavBlob = audioToWav(audioDataChunks, audioContext.sampleRate);
-                    const audioUrl = URL.createObjectURL(wavBlob);
-                    audioPlayer.src = audioUrl;
-                    audioPlayer.load();
-                    logWithStyle('Audio loaded into player.', 'info');
-
-                    audioBlobToBase64(wavBlob, function (base64Audio) {
-                        logWithStyle('Audio data converted to Base64 for processing.', 'info');
-
-                        audioChunks = splitBase64AudioData(base64Audio, maxChunkSize);
-
-                        if (audioChunks.length === 0) {
-                            logWithStyle('No audio data available after splitting. Please record again.', 'error');
-                            alert('Recording failed. Please try again.');
-                            return;
-                        }
-
-                        if (debug) {
-                            debugFilename = 'audio_recording';
-                            downloadCustomTextFile(audioChunks, debugFilename, userTracker, sessionCount);
-                            downloadAudioBlob(wavBlob, debugFilename);
-                            logWithStyle('Audio chunks saved to text file for debugging.', 'info');
-                        }
-                    });
-                });
-
-                saveButton.addEventListener('click', async function () {
-                    logWithStyle('Save button clicked for session ' + sessionCount, 'info');
-                    handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'submit', startTime);
-
-                    // Immediately disable the buttons to prevent multiple clicks
-                    startButton.disabled = true;
-                    saveButton.disabled = true;
-
-                    const currentAudioBox = $v(pagePrefix + 'CURRENT_AUDIO_BOX');
-                    const userTracker = $v(pagePrefix + 'USER_TRACKER');
-
-                    if (!audioChunks || audioChunks.length === 0) {
-                        alert('Audio data is missing. Please record again before saving.');
-                        logWithStyle('Save aborted due to missing audio chunks.', 'error');
-                        saveButton.disabled = false;
-                        saveButton.style.backgroundColor = '';
-                        startButton.disabled = false;
-                        startButton.style.backgroundColor = '';
-                        return;
-                    }
-
-                    logWithStyle(pagePrefix + "CURRENT_AUDIO_BOX before submit: " + currentAudioBox, 'trace');
-                    logWithStyle("Chunks Len:", audioChunks.length, 'trace');
-
-                    try {
-                        let isPopulatedResponse = await apex.server.process(
-                            'IS_AUDIO_FILE_POPULATED',
-                            {
-                                x01: currentAudioBox,
-                                x02: userTracker
-                            },
-                            {
-                                dataType: 'json'
-                            }
-                        );
-
-                        if (isPopulatedResponse.audio_populated) {
-                            logWithStyle('Audio file already populated. Save operation aborted.', 'warn');
-                            alert('This audio file is already populated. No need to save again.');
-                            apex.page.submit();
-                            location.reload();
-                            return;
-                        }
-
-                        let chunkCount = 0;
-                        for (let i = 0; i < audioChunks.length; i++) {
-                            const chunk = audioChunks[i];
-                            chunkCount += 1;
-                            console.log(`Sending chunk ${chunkCount}, Length: ${chunk.length}, Content: ${chunk.slice(0, 25)}...`);
-
-                            try {
-                                const response = await apex.server.process(
-                                    'SAVE_AUDIO_FILE_2',
-                                    {
-                                        x01: currentAudioBox,
-                                        x02: userTracker,
-                                        x03: chunk
-                                    },
-                                    {
-                                        dataType: 'json'
-                                    }
-                                );
-
-                                if (response.audio_updated) {
-                                    console.log(`Chunk ${i + 1} saved successfully.`);
+                try {
+                    apex.server.process(
+                        'IS_AUDIO_FILE_POPULATED',
+                        {
+                            x01: currentAudioBox,
+                            x02: userTracker
+                        },
+                        {
+                            dataType: 'json',
+                            success: function (isPopulatedResponse) {
+                                if (isPopulatedResponse && isPopulatedResponse.audio_populated) {
+                                    logWithStyle('Audio file already populated. Save operation aborted.', 'warn');
+                                    showAlreadySavedMessage('alreadySaved');
+                                    mainRegion.style.display = 'none';  // Hide main region if needed
+                                    return;  // Stop further execution to prevent recording
                                 } else {
-                                    console.warn(`Chunk ${i + 1} failed to update.`);
+                                    // Enable buttons and audio player for recording
+                                    startButton.disabled = false;
+                                    stopButton.disabled = false;
+                                    saveButton.disabled = false;
+                                    audioPlayer.disabled = false;
+                                    // Additional logic for recording if not populated
+                                    console.log("Audio not populated. Ready for recording.");
+
+                                    let audioDataChunks = [];
+                                    let volumeCanvas;
+                                    let volumeProcessorNode;
+                                    let startTime = 0.0;
+
+
+                                    startButton.addEventListener('click', async function () {
+
+                                        logWithStyle('Start button clicked for session ' + sessionCount, 'info');
+                                        startTime = handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'start');
+
+                                        if (!volumeCanvas) {
+                                            volumeCanvas = createVolumeCanvas(audioPlayer);
+                                        }
+
+                                        try {
+                                            const result = await initAudioWorklet(sampleRate, channelCount, audioProcessorJSFile);
+                                            if (result) {
+                                                audioContext = result.audioContext;
+                                                processorNode = result.processorNode;
+                                                stream = result.stream;
+                                                audioDataChunks = result.audioDataChunks;
+
+                                                await audioContext.audioWorklet.addModule(volumenProcessorJSFile);
+                                                volumeProcessorNode = new AudioWorkletNode(audioContext, 'volume-processor');
+                                                const source = audioContext.createMediaStreamSource(stream);
+                                                source.connect(volumeProcessorNode);
+                                                source.connect(processorNode);
+
+                                                // Set up the river-style visualizer
+                                                const volumeAnalyser = new AnalyserNode(audioContext, { fftSize: 256 });
+                                                source.connect(volumeAnalyser);
+                                                riverStyleSpectrumVisualizer(volumeAnalyser, volumeCanvas);
+
+                                                logWithStyle('Recording and volume visualization started.', 'info');
+                                            } else {
+                                                logWithStyle('Recording aborted due to low sample rate.', 'error');
+                                                alert('Recording cannot proceed due to insufficient audio quality. Please use a wired setup.');
+                                                handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop');
+                                                startButton.disabled = true;
+                                                saveButton.disabled = true;
+                                            }
+                                        } catch (error) {
+                                            logWithStyle('Error starting recording: ' + error.message, 'error');
+                                            handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop');
+                                            startButton.disabled = true;
+                                            saveButton.disabled = true;
+                                        }
+
+
+                                    });
+
+                                    stopButton.addEventListener('click', function () {
+                                        logWithStyle('Stop button clicked for session ' + sessionCount, 'info');
+                                        handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'stop', startTime);
+
+                                        if (stream) {
+                                            const tracks = stream.getTracks();
+                                            tracks.forEach(track => track.stop());
+                                            logWithStyle('Audio stream stopped.', 'info');
+                                        }
+
+                                        const wavBlob = audioToWav(audioDataChunks, audioContext.sampleRate);
+                                        const audioUrl = URL.createObjectURL(wavBlob);
+                                        audioPlayer.src = audioUrl;
+                                        audioPlayer.load();
+                                        logWithStyle('Audio loaded into player.', 'info');
+
+                                        audioBlobToBase64(wavBlob, function (base64Audio) {
+                                            logWithStyle('Audio data converted to Base64 for processing.', 'info');
+
+                                            audioChunks = splitBase64AudioData(base64Audio, maxChunkSize);
+
+                                            if (audioChunks.length === 0) {
+                                                logWithStyle('No audio data available after splitting. Please record again.', 'error');
+                                                alert('Recording failed. Please try again.');
+                                                return;
+                                            }
+
+                                            if (debug) {
+                                                debugFilename = 'audio_recording';
+                                                downloadCustomTextFile(audioChunks, debugFilename, userTracker, sessionCount);
+                                                downloadAudioBlob(wavBlob, debugFilename);
+                                                logWithStyle('Audio chunks saved to text file for debugging.', 'info');
+                                            }
+                                        });
+                                    });
+
+                                    saveButton.addEventListener('click', async function () {
+                                        logWithStyle('Save button clicked for session ' + sessionCount, 'info');
+                                        handleRecordingControlStates(startButton, stopButton, saveButton, audioPlayer, loggingElement, 'submit', startTime);
+
+                                        // Immediately disable the buttons to prevent multiple clicks
+                                        startButton.disabled = true;
+                                        saveButton.disabled = true;
+
+                                        const currentAudioBox = $v(pagePrefix + 'CURRENT_AUDIO_BOX');
+                                        const userTracker = $v(pagePrefix + 'USER_TRACKER');
+
+                                        if (!audioChunks || audioChunks.length === 0) {
+                                            alert('Audio data is missing. Please record again before saving.');
+                                            logWithStyle('Save aborted due to missing audio chunks.', 'error');
+                                            saveButton.disabled = false;
+                                            saveButton.style.backgroundColor = '';
+                                            startButton.disabled = false;
+                                            startButton.style.backgroundColor = '';
+                                            return;
+                                        }
+
+                                        logWithStyle(pagePrefix + "CURRENT_AUDIO_BOX before submit: " + currentAudioBox, 'trace');
+                                        logWithStyle("Chunks Len:", audioChunks.length, 'trace');
+
+                                        try {
+                                            let isPopulatedResponse = await apex.server.process(
+                                                'IS_AUDIO_FILE_POPULATED',
+                                                {
+                                                    x01: currentAudioBox,
+                                                    x02: userTracker
+                                                },
+                                                {
+                                                    dataType: 'json'
+                                                }
+                                            );
+
+                                            if (isPopulatedResponse.audio_populated) {
+                                                logWithStyle('Audio file already populated. Save operation aborted.', 'warn');
+                                                alert('This audio file is already populated. No need to save again.');
+                                                apex.page.submit();
+                                                location.reload();
+                                                return;
+                                            }
+
+                                            try {
+                                                console.log('Calling RESET_AUDIO_ON_CONDITION with parameters:', {
+                                                    currentAudioBox: currentAudioBox,
+                                                    userTracker: userTracker
+                                                });
+
+                                                let resetResponse = await apex.server.process(
+                                                    'RESET_AUDIO_ON_CONDITION',
+                                                    {
+                                                        x01: currentAudioBox,
+                                                        x02: userTracker
+                                                    },
+                                                    {
+                                                        dataType: 'json'
+                                                    }
+                                                );
+
+                                                // Log the raw response for further insight
+                                                console.log('RESET_AUDIO_ON_CONDITION response:', resetResponse);
+
+                                                if (resetResponse && typeof resetResponse === 'object') {
+                                                    // Process and log based on the JSON response
+                                                    if (resetResponse.status === 'success' && resetResponse.audio_reset) {
+                                                        console.log('RESET_AUDIO_ON_CONDITION: Audio file reset successfully.');
+                                                    } else if (resetResponse.status === 'success' && !resetResponse.audio_reset) {
+                                                        console.log('RESET_AUDIO_ON_CONDITION: No reset was needed for the audio file.');
+                                                    } else if (resetResponse.status === 'error') {
+                                                        console.error('RESET_AUDIO_ON_CONDITION: Error -', resetResponse.message);
+                                                    } else {
+                                                        console.warn('RESET_AUDIO_ON_CONDITION: Unexpected response format:', resetResponse);
+                                                    }
+                                                } else {
+                                                    console.error('RESET_AUDIO_ON_CONDITION: Response is not valid JSON or has unexpected format:', resetResponse);
+                                                }
+                                            } catch (error) {
+                                                // Log network-related errors separately
+                                                console.error('RESET_AUDIO_ON_CONDITION: Unexpected error during AJAX call:', error);
+                                                console.error('Please check the Network tab in Developer Tools for details on the failed request.');
+                                            }
+
+
+                                            let chunkCount = 0;
+                                            for (let i = 0; i < audioChunks.length; i++) {
+                                                const chunk = audioChunks[i];
+                                                chunkCount += 1;
+                                                console.log(`Sending chunk ${chunkCount}, Length: ${chunk.length}, Content: ${chunk.slice(0, 25)}...`);
+
+                                                try {
+                                                    const response = await apex.server.process(
+                                                        'SAVE_AUDIO_FILE_2',
+                                                        {
+                                                            x01: currentAudioBox,
+                                                            x02: userTracker,
+                                                            x03: chunk
+                                                        },
+                                                        {
+                                                            dataType: 'json'
+                                                        }
+                                                    );
+
+                                                    if (response.audio_updated) {
+                                                        console.log(`Chunk ${i + 1} saved successfully.`);
+                                                    } else {
+                                                        console.warn(`Chunk ${i + 1} failed to update.`);
+                                                    }
+
+                                                    if (chunkCount % 50 === 0) {
+                                                        console.log("Pausing for 500ms...");
+                                                        await new Promise(resolve => setTimeout(resolve, 500)); // Pause for 500ms
+                                                    }
+                                                } catch (error) {
+                                                    console.error(`Error in AJAX call for chunk ${i + 1}:`, error);
+                                                }
+                                            }
+
+                                            if (loggingElement) {
+                                                loggingElement.style.display = 'none';
+                                            }
+
+                                            let isAudioFilePresent = await apex.server.process(
+                                                'IS_AUDIO_FILE_PRESENT',
+                                                {
+                                                    x01: currentAudioBox,
+                                                    x02: userTracker
+                                                },
+                                                {
+                                                    dataType: 'json'
+                                                }
+                                            );
+                                            console.log("IS_AUDIO_FILE_PRESENT response:", isAudioFilePresent);
+
+                                            if (isPopulatedResponse) {
+                                                logWithStyle('Audio file successfully entered after save operation.', 'info');
+                                                apex.page.submit();
+                                                location.reload();
+                                            } else {
+                                                logWithStyle('Warning: Audio file did not populate as expected after saving.', 'warn');
+                                            }
+
+                                            apex.item(pagePrefix + 'CURRENT_AUDIO_BOX').refresh();
+
+                                        } catch (error) {
+                                            console.error('Error checking if audio is populated:', error);
+                                            // Re-enable buttons if an error occurs
+                                            startButton.disabled = false;
+                                            saveButton.disabled = false;
+                                        } finally {
+                                            // Ensure buttons are re-enabled at the end of the process
+                                            startButton.disabled = true;
+                                            saveButton.disabled = true;
+                                        }
+                                    });
+
+
+                                //_ELSE ENDS HERE
                                 }
-
-                                if (chunkCount % 50 === 0) {
-                                    console.log("Pausing for 500ms...");
-                                    await new Promise(resolve => setTimeout(resolve, 500)); // Pause for 500ms
-                                }
-                            } catch (error) {
-                                console.error(`Error in AJAX call for chunk ${i + 1}:`, error);
-                            }
-                        }
-
-                        if (loggingElement) {
-                            loggingElement.style.display = 'none';
-                        }
-
-                        let isAudioFilePresent = await apex.server.process(
-                            'IS_AUDIO_FILE_PRESENT',
-                            {
-                                x01: currentAudioBox,
-                                x02: userTracker
                             },
-                            {
-                                dataType: 'json'
+
+                            error: function (error) {
+                                console.error('Error checking if audio is populated:', error);
+                                startButton.disabled = false;
+                                saveButton.disabled = false;
                             }
-                        );
-                        console.log("IS_AUDIO_FILE_PRESENT response:", isAudioFilePresent);
-
-                        if (isPopulatedResponse) {
-                            logWithStyle('Audio file successfully entered after save operation.', 'info');
-                            apex.page.submit();
-                            location.reload();
-                        } else {
-                            logWithStyle('Warning: Audio file did not populate as expected after saving.', 'warn');
                         }
-
-                        apex.item(pagePrefix + 'CURRENT_AUDIO_BOX').refresh();
-
-                    } catch (error) {
-                        console.error('Error checking if audio is populated:', error);
-                        // Re-enable buttons if an error occurs
+                    );
+                } catch (error) {
+                    console.error('Error checking if audio is populated:', error);
+                } finally {
+                    // Only re-enable buttons if the audio was not already populated
+                   if (!isPopulatedResponse || !isPopulatedResponse.audio_populated) {
                         startButton.disabled = false;
-                        saveButton.disabled = false;
-                    } finally {
-                        // Ensure buttons are re-enabled at the end of the process
-                        startButton.disabled = false;
-                        saveButton.disabled = false;
+                        saveButton.disabled = true;
                     }
-                });
-
+                }
             }
 
             for (let sessionCount = startRecorder; sessionCount <= stopRecorder; sessionCount++) {
