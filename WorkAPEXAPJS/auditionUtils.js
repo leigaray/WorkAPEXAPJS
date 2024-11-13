@@ -422,3 +422,30 @@ function visualizeSaveProgress(canvas, currentChunk, totalChunks) {
 
     console.log(`Visualizing save progress: ${Math.round(progressPercentage * 100)}%`);
 }
+function updateSelectListAndMessage(selectListId, messageId) {
+    // Retrieve the select list and message element by their IDs
+    const selectList = document.getElementById(selectListId);
+    const messageElement = document.getElementById(messageId);
+
+    // Initialize a flag to check if all options are saved
+    let allOptionsSaved = true;
+
+    // Check if the select list element exists
+    if (selectList) {
+        // Loop through each option in the select list
+        Array.from(selectList.options).forEach(option => {
+            // Set background color based on the option's text content
+            if (option.text.includes("( audio saved )")) {
+                option.style.backgroundColor = "lightgreen";
+            } else if (option.text.includes("( no audio )")) {
+                option.style.backgroundColor = "lightcoral";
+                allOptionsSaved = false;
+            }
+        });
+    }
+
+    // Display or hide the message based on the allOptionsSaved flag
+    if (messageElement) {
+        messageElement.style.display = allOptionsSaved ? "inline" : "none";
+    }
+}
