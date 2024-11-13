@@ -514,3 +514,36 @@ function initializePlaybackContext(audioPlayer, playbackAudioContext, playbackAn
     }
     return { playbackAudioContext, playbackAnalyser, playbackSourceNode };
 }
+function playbackVisualizer(audioPlayer, canvas, playbackAudioContext, playbackAnalyser, playbackSourceNode) {
+    // Initialize the playback context and analyser if not already set up
+    if (!playbackAudioContext || !playbackAnalyser || !playbackSourceNode) {
+        playbackAudioContext = new AudioContext();
+        playbackAnalyser = playbackAudioContext.createAnalyser();
+        playbackAnalyser.fftSize = 256;
+        playbackSourceNode = playbackAudioContext.createMediaElementSource(audioPlayer);
+        playbackSourceNode.connect(playbackAnalyser);
+        playbackAnalyser.connect(playbackAudioContext.destination);
+    }
+
+    const canvasContext = canvas.getContext("2d");
+    const dataArray = new Uint8Array(playbackAnalyser.frequencyBinCount);
+
+    function drawPlayback() {
+        requestAnimationFrame(drawPlayback);
+        playbackAnalyser.getByteFrequencyData(dataArray);
+
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        const barWidth = (canvas.width / dataArray.length) * 2.5;
+        let x = 0;
+
+        for (let i = 0; i < dataArray.length; i++) {
+            const barHeight = dataArray[i] / 1.5;
+            canvasContext.fillStyle = `rgb(${barHeight + 50}, 100, 200)`;
+            canvasContext.fillRect(x, canvas.height / 2 - barHeight / 2, barWidth, barHeight / 2);
+            canvasContext.fillRect(x, canvas.height / 2, barWidth, barHeight / 2);
+            x += barWidth + 1;
+        }
+    }
+
+    drawPlayback();
+}
