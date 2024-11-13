@@ -449,3 +449,68 @@ function updateSelectListAndMessage(selectListId, messageId) {
         messageElement.style.display = allOptionsSaved ? "inline" : "none";
     }
 }
+function createVolumeCanvas(audioPlayer, canvasWidth = 300, canvasHeight = 150) {
+    const canvas = document.createElement("canvas");
+    canvas.id = "volume-visualizer";
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    canvas.style.border = "1px solid lightgray";
+    audioPlayer.parentElement.insertBefore(canvas, audioPlayer);
+    return canvas;
+}
+function riverStyleSpectrumVisualizer(analyser, canvas, frequencyBinCount = 256) {
+    const canvasContext = canvas.getContext("2d");
+    const dataArray = new Uint8Array(frequencyBinCount);
+
+    function drawRiver() {
+        requestAnimationFrame(drawRiver);
+        analyser.getByteFrequencyData(dataArray);
+
+        canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+
+        const barWidth = (canvas.width / dataArray.length) * 2.5;
+        let x = 0;
+
+        for (let i = 0; i < dataArray.length; i++) {
+            const barHeight = dataArray[i] / 1.5;
+            canvasContext.fillStyle = `rgb(${barHeight + 50}, 100, 200)`;
+            canvasContext.fillRect(x, canvas.height / 2 - barHeight / 2, barWidth, barHeight / 2);
+            canvasContext.fillRect(x, canvas.height / 2, barWidth, barHeight / 2);
+
+            x += barWidth + 1;
+        }
+    }
+    drawRiver();
+}
+function showAlreadySavedMessage(messageElementId, apexPage) {
+    if (showAlreadySavedMessage.alreadySubmitted) {
+        console.log("Page submission already in process.");
+        return;
+    }
+
+    showAlreadySavedMessage.alreadySubmitted = true;
+
+    const messageElement = document.getElementById(messageElementId);
+    if (messageElement) {
+        messageElement.style.display = 'block';
+    }
+    setTimeout(function () {
+        console.log("Submitting page after showing message...");
+        if (apexPage && apexPage.page && typeof apexPage.page.submit === "function") {
+            apexPage.page.submit();
+        }
+        showAlreadySavedMessage.alreadySubmitted = false;
+    }, 2000);  // Delay for 2 seconds (2000 ms)
+}
+function initializePlaybackContext(audioPlayer, playbackAudioContext, playbackAnalyser, playbackSourceNode) {
+    if (!playbackAudioContext) {
+        playbackAudioContext = new AudioContext();
+        playbackAnalyser = playbackAudioContext.createAnalyser();
+        playbackAnalyser.fftSize = 256;
+
+        playbackSourceNode = playbackAudioContext.createMediaElementSource(audioPlayer);
+        playbackSourceNode.connect(playbackAnalyser);
+        playbackAnalyser.connect(playbackAudioContext.destination);
+    }
+    return { playbackAudioContext, playbackAnalyser, playbackSourceNode };
+}
