@@ -512,15 +512,17 @@ function showAlreadySavedMessage(messageElementId, apexPage) {
 }
 
 function initializePlaybackContext(audioPlayer) {
-    let playbackAudioContext = new AudioContext();
-    let playbackAnalyser = playbackAudioContext.createAnalyser();
+    const playbackAudioContext = new AudioContext();
+    const playbackAnalyser = playbackAudioContext.createAnalyser();
     playbackAnalyser.fftSize = 256;
-    let playbackSourceNode = playbackAudioContext.createMediaElementSource(audioPlayer);
+
+    const playbackSourceNode = playbackAudioContext.createMediaElementSource(audioPlayer);
     playbackSourceNode.connect(playbackAnalyser);
     playbackAnalyser.connect(playbackAudioContext.destination);
 
-    return {playbackAudioContext, playbackAnalyser, playbackSourceNode};
+    return { playbackAudioContext, playbackAnalyser, playbackSourceNode };
 }
+
 
 function playbackVisualizer(audioPlayer, canvas, playbackContext) {
     const {playbackAudioContext, playbackAnalyser, playbackSourceNode} = playbackContext;
