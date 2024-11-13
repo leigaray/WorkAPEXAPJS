@@ -255,7 +255,7 @@ function stopTimer(loggingElement, startTime, intervalId) {
     loggingElement.innerText = `Recording stopped. Total time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function assignJsonToItems(jsonData, neededSequences, show_details=true) {
+function assignJsonToItems(jsonData, neededSequences, show_details = true) {
     console.log("Using assignJsonToItems(jsonData)");
     console.log("jsonData is the prompt coming from the db to be parsed and presented in the UI.")
 
@@ -327,7 +327,7 @@ function assignJsonToItems(jsonData, neededSequences, show_details=true) {
     });
 }
 
-function fetchPrompts(pageNumber, recordingsNeeded, show_details=true) {
+function fetchPrompts(pageNumber, recordingsNeeded, show_details = true) {
 
     apex.server.process('FETCH_PROMPTS', {}, {
         success: function (data) {
@@ -362,6 +362,7 @@ function fetchPrompts(pageNumber, recordingsNeeded, show_details=true) {
         }
     });
 }
+
 /**
  * Visualizes the progress of saving data with a color transition and a completion animation.
  * @param {HTMLCanvasElement} canvas - The canvas element to draw the progress bar on.
@@ -405,6 +406,7 @@ function visualizeSaveProgress(canvas, currentChunk, totalChunks) {
     // Pulse animation if 100% is reached
     if (progressPercentage >= 1) {
         let pulse = 0;
+
         function pulseAnimation() {
             canvasContext.clearRect(0, 0, canvas.width, canvas.height);
             const pulseWidth = canvas.width * (1 + Math.sin(pulse) * 0.05);
@@ -417,11 +419,13 @@ function visualizeSaveProgress(canvas, currentChunk, totalChunks) {
                 requestAnimationFrame(pulseAnimation);
             }
         }
+
         pulseAnimation();
     }
 
     console.log(`Visualizing save progress: ${Math.round(progressPercentage * 100)}%`);
 }
+
 function updateSelectListAndMessage(selectListId, messageId) {
     // Retrieve the select list and message element by their IDs
     const selectList = document.getElementById(selectListId);
@@ -449,6 +453,7 @@ function updateSelectListAndMessage(selectListId, messageId) {
         messageElement.style.display = allOptionsSaved ? "inline" : "none";
     }
 }
+
 function createVolumeCanvas(audioPlayer, canvasWidth = 300, canvasHeight = 150) {
     const canvas = document.createElement("canvas");
     canvas.id = "volume-visualizer";
@@ -458,6 +463,7 @@ function createVolumeCanvas(audioPlayer, canvasWidth = 300, canvasHeight = 150) 
     audioPlayer.parentElement.insertBefore(canvas, audioPlayer);
     return canvas;
 }
+
 function riverStyleSpectrumVisualizer(analyser, canvas, frequencyBinCount = 256) {
     const canvasContext = canvas.getContext("2d");
     const dataArray = new Uint8Array(frequencyBinCount);
@@ -480,8 +486,10 @@ function riverStyleSpectrumVisualizer(analyser, canvas, frequencyBinCount = 256)
             x += barWidth + 1;
         }
     }
+
     drawRiver();
 }
+
 function showAlreadySavedMessage(messageElementId, apexPage) {
     if (showAlreadySavedMessage.alreadySubmitted) {
         console.log("Page submission already in process.");
@@ -502,28 +510,20 @@ function showAlreadySavedMessage(messageElementId, apexPage) {
         showAlreadySavedMessage.alreadySubmitted = false;
     }, 2000);  // Delay for 2 seconds (2000 ms)
 }
-function initializePlaybackContext(audioPlayer, playbackAudioContext, playbackAnalyser, playbackSourceNode) {
-    if (!playbackAudioContext) {
-        playbackAudioContext = new AudioContext();
-        playbackAnalyser = playbackAudioContext.createAnalyser();
-        playbackAnalyser.fftSize = 256;
 
-        playbackSourceNode = playbackAudioContext.createMediaElementSource(audioPlayer);
-        playbackSourceNode.connect(playbackAnalyser);
-        playbackAnalyser.connect(playbackAudioContext.destination);
-    }
-    return { playbackAudioContext, playbackAnalyser, playbackSourceNode };
+function initializePlaybackContext(audioPlayer) {
+    let playbackAudioContext = new AudioContext();
+    let playbackAnalyser = playbackAudioContext.createAnalyser();
+    playbackAnalyser.fftSize = 256;
+    let playbackSourceNode = playbackAudioContext.createMediaElementSource(audioPlayer);
+    playbackSourceNode.connect(playbackAnalyser);
+    playbackAnalyser.connect(playbackAudioContext.destination);
+
+    return {playbackAudioContext, playbackAnalyser, playbackSourceNode};
 }
-function playbackVisualizer(audioPlayer, canvas, playbackAudioContext, playbackAnalyser, playbackSourceNode) {
-    // Initialize the playback context and analyser if not already set up
-    if (!playbackAudioContext || !playbackAnalyser || !playbackSourceNode) {
-        playbackAudioContext = new AudioContext();
-        playbackAnalyser = playbackAudioContext.createAnalyser();
-        playbackAnalyser.fftSize = 256;
-        playbackSourceNode = playbackAudioContext.createMediaElementSource(audioPlayer);
-        playbackSourceNode.connect(playbackAnalyser);
-        playbackAnalyser.connect(playbackAudioContext.destination);
-    }
+
+function playbackVisualizer(audioPlayer, canvas, playbackContext) {
+    const {playbackAudioContext, playbackAnalyser, playbackSourceNode} = playbackContext;
 
     const canvasContext = canvas.getContext("2d");
     const dataArray = new Uint8Array(playbackAnalyser.frequencyBinCount);
@@ -547,3 +547,4 @@ function playbackVisualizer(audioPlayer, canvas, playbackAudioContext, playbackA
 
     drawPlayback();
 }
+
