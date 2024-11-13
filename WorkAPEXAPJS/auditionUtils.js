@@ -524,8 +524,11 @@ function initializePlaybackContext(audioPlayer) {
 }
 
 
-function playbackVisualizer(audioPlayer, canvas, playbackContext) {
-    const {playbackAudioContext, playbackAnalyser, playbackSourceNode} = playbackContext;
+function playbackVisualizer(audioPlayer, canvas, playbackAudioContext, playbackAnalyser, playbackSourceNode) {
+    if (!playbackAudioContext || !playbackAnalyser || !playbackSourceNode) {
+        console.error("Playback context not fully initialized. Please ensure initializePlaybackContext has been called.");
+        return;
+    }
 
     const canvasContext = canvas.getContext("2d");
     const dataArray = new Uint8Array(playbackAnalyser.frequencyBinCount);
@@ -549,4 +552,3 @@ function playbackVisualizer(audioPlayer, canvas, playbackContext) {
 
     drawPlayback();
 }
-
