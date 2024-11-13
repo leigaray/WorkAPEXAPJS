@@ -457,7 +457,7 @@ function updateSelectListAndMessage(selectListId, messageId) {
 function createVolumeCanvas(audioPlayer, canvasWidth = 300, canvasHeight = 150) {
     const canvas = document.createElement("canvas");
     canvas.id = "volume-visualizer";
-    canvas.width = canvasWidth;
+    canvas.width = audioPlayer.clientWidth
     canvas.height = canvasHeight;
     canvas.style.border = "1px solid lightgray";
     audioPlayer.parentElement.insertBefore(canvas, audioPlayer);
