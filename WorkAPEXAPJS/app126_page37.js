@@ -127,6 +127,43 @@ document.addEventListener('DOMContentLoaded', async function (event) {
                 }, 2000);  // Delay for 2 seconds (2000 ms)
             }
 
+            function initializePlaybackContext(audioPlayer) {
+                if (!playbackAudioContext) {
+                    playbackAudioContext = new AudioContext();
+                    playbackAnalyser = playbackAudioContext.createAnalyser();
+                    playbackAnalyser.fftSize = 256;
+
+                    playbackSourceNode = playbackAudioContext.createMediaElementSource(audioPlayer);
+                    playbackSourceNode.connect(playbackAnalyser);
+                    playbackAnalyser.connect(playbackAudioContext.destination);
+                }
+            }
+
+            function playbackVisualizer(audioPlayer, canvas) {
+                initializePlaybackContext(audioPlayer);
+                const canvasContext = canvas.getContext("2d");
+                const dataArray = new Uint8Array(playbackAnalyser.frequencyBinCount);
+
+                function drawPlayback() {
+                    requestAnimationFrame(drawPlayback);
+                    playbackAnalyser.getByteFrequencyData(dataArray);
+
+                    canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+                    const barWidth = (canvas.width / dataArray.length) * 2.5;
+                    let x = 0;
+
+                    for (let i = 0; i < dataArray.length; i++) {
+                        const barHeight = dataArray[i] / 1.5;
+                        canvasContext.fillStyle = `rgb(${barHeight + 50}, 100, 200)`;
+                        canvasContext.fillRect(x, canvas.height / 2 - barHeight / 2, barWidth, barHeight / 2);
+                        canvasContext.fillRect(x, canvas.height / 2, barWidth, barHeight / 2);
+                        x += barWidth + 1;
+                    }
+                }
+
+                drawPlayback();
+            }
+
 
             function handleRecording(sessionCount, startButton, stopButton, saveButton, audioPlayer, loggingElement) {
                 startButton.disabled = true;
@@ -248,6 +285,14 @@ document.addEventListener('DOMContentLoaded', async function (event) {
                                                 logWithStyle('Audio chunks saved to text file for debugging.', 'info');
                                             }
                                         });
+                                    });
+
+                                    audioPlayer.addEventListener("loadeddata", function () {
+                                        // Start playback visualizer using a separate volume canvas
+                                        if (!volumeCanvas) {
+                                            volumeCanvas = createVolumeCanvas(audioPlayer);
+                                        }
+                                        playbackVisualizer(audioPlayer, volumeCanvas);
                                     });
 
                                     saveButton.addEventListener('click', async function () {

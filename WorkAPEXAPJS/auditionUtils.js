@@ -207,7 +207,8 @@ function createRegionAndItems(sessionCount, mainRegion, pageNumber, stopRecorder
         saveButton.innerText = 'SUBMIT';
         saveButton.addEventListener('click', function () {
             const completionMessage = document.createElement('div');
-            completionMessage.innerText = 'Thank you for completing the recordings!\nYou will be notified by email of next steps once your samples and information have been reviewed.';
+            //completionMessage.innerText = 'Thank you for completing the recordings!\nYou will be notified by email of next steps once your samples and information have been reviewed.';
+            completionMessage.innerText = '';
             completionMessage.style.fontSize = '22px';
             completionMessage.style.color = 'green';
             mainRegion.appendChild(completionMessage);
