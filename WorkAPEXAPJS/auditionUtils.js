@@ -362,3 +362,63 @@ function fetchPrompts(pageNumber, recordingsNeeded, show_details=true) {
         }
     });
 }
+/**
+ * Visualizes the progress of saving data with a color transition and a completion animation.
+ * @param {HTMLCanvasElement} canvas - The canvas element to draw the progress bar on.
+ * @param {number} currentChunk - The current chunk number that has been saved.
+ * @param {number} totalChunks - The total number of chunks to be saved.
+ */
+function visualizeSaveProgress(canvas, currentChunk, totalChunks) {
+    if (!(canvas instanceof HTMLCanvasElement)) {
+        console.error("A valid canvas element must be provided.");
+        return;
+    }
+
+    const canvasContext = canvas.getContext("2d");
+    if (!canvasContext) {
+        console.error("Canvas context could not be initialized.");
+        return;
+    }
+
+    // Calculate progress percentage
+    const progressPercentage = currentChunk / totalChunks;
+    const progressWidth = canvas.width * progressPercentage;
+
+    // Define the color transition from start to end based on progress
+    const startColor = [255, 165, 0]; // Orange
+    const endColor = [0, 200, 0]; // Green
+    const currentColor = startColor.map((start, i) => Math.round(start + (endColor[i] - start) * progressPercentage));
+    const fillColor = `rgb(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]})`;
+
+    // Clear the canvas before drawing the new progress
+    canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the progress bar with calculated color and width
+    canvasContext.fillStyle = fillColor;
+    canvasContext.fillRect(0, canvas.height / 2 - 15, progressWidth, 30);
+
+    // Draw the progress text
+    canvasContext.fillStyle = "black";
+    canvasContext.font = "16px Arial";
+    canvasContext.fillText(`${Math.round(progressPercentage * 100)}%`, canvas.width / 2 - 15, canvas.height / 2 + 5);
+
+    // Pulse animation if 100% is reached
+    if (progressPercentage >= 1) {
+        let pulse = 0;
+        function pulseAnimation() {
+            canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+            const pulseWidth = canvas.width * (1 + Math.sin(pulse) * 0.05);
+            canvasContext.fillStyle = "rgb(0, 200, 0)"; // Green for 100%
+            canvasContext.fillRect(0, canvas.height / 2 - 15, pulseWidth, 30);
+            canvasContext.fillStyle = "black";
+            canvasContext.fillText("100%", canvas.width / 2 - 15, canvas.height / 2 + 5);
+            pulse += 0.2;
+            if (pulse <= 10) {
+                requestAnimationFrame(pulseAnimation);
+            }
+        }
+        pulseAnimation();
+    }
+
+    console.log(`Visualizing save progress: ${Math.round(progressPercentage * 100)}%`);
+}
